@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 require 'json'
+require 'pathname'
 
 # Minimum CocoaPods Ruby version is 2.0.
 # Don't depend on features newer than that.
