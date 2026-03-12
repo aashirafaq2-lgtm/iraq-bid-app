@@ -1,9 +1,21 @@
-# The next line is used by the Flutter tool to generate the CocoaPods dependencies.
-load File.join(File.dirname(File.realpath(__FILE__)), 'Flutter', 'podhelper.rb')
+# The Ultimate CI-Safe Podfile for Iraq Bid
+# This script dynamically finds the Flutter SDK's official podhelper.rb
+
+# 1. Try to find Flutter Root from environment or config
+flutter_root = `flutter config --machine`.match(/"flutterRoot":\s*"([^"]+)"/)[1] rescue nil
+flutter_root ||= ENV['FLUTTER_ROOT']
+flutter_root ||= File.join('..', '..', '..', 'flutter') # Fallback relative
+
+podhelper_path = File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
+
+if File.exist?(podhelper_path)
+  load podhelper_path
+else
+  # Fallback to local if SDK not found (should not happen on Codemagic)
+  load File.join(File.dirname(File.realpath(__FILE__)), 'Flutter', 'podhelper.rb')
+end
 
 platform :ios, '13.0'
-
-# CocoaPods analytics sends network stats. Disable it.
 install! 'cocoapods', :deterministic_uuids => false
 
 target 'Runner' do
@@ -17,7 +29,6 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      # Resolve IPHONEOS_DEPLOYMENT_TARGET mismatch
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
       config.build_settings['ENABLE_BITCODE'] = 'NO'
     end
