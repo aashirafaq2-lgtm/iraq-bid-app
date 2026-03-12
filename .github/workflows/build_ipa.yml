@@ -10,19 +10,17 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.0'
+          channel: 'stable'
           cache: true
 
       - name: Force Build iOS
         run: |
           flutter pub get
-          # Bypass CocoaPods manual step and let flutter handle it
           flutter build ios --release --no-codesign --verbose || true
           
       - name: Create IPA Package
         run: |
           mkdir -p Payload
-          # Search for Runner.app and copy it
           find build/ios/iphoneos -name "*.app" -exec cp -r {} Payload/ \;
           zip -r release-ipa.ipa Payload
           mkdir -p build/ios/ipa
