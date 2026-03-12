@@ -16,15 +16,10 @@ jobs:
       - name: Get Dependencies
         run: flutter pub get
 
-      - name: Install Cocoapods
+      - name: Build iOS Application
         run: |
-          cd ios
-          pod install --repo-update
-          cd ..
-
-      - name: Build iOS
-        run: |
-          flutter build ios --release --no-codesign
+          # Flutter build command will handle pod install internally if Podfile is correct
+          flutter build ios --release --no-codesign --verbose
           
       - name: Create IPA Package
         run: |
