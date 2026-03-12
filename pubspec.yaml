@@ -1,0 +1,68 @@
+name: bidmaster
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.1+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  go_router: ^16.3.0
+  image_picker: ^1.0.7
+  dio: ^5.4.0
+  shared_preferences: ^2.3.5
+  get_storage: ^2.1.1
+  flutter_dotenv: ^5.1.0
+  share_plus: ^10.1.4
+  app_links: ^6.3.3  # Latest version with namespace fix
+  cached_network_image: ^3.3.1  # For production-ready image caching
+  intl: ^0.20.2  # For internationalization (required by flutter_localizations)
+  connectivity_plus: ^6.0.5  # For checking internet connectivity
+  flutter_animate: ^4.5.0  # For smooth animations
+  animations: ^2.0.11  # Material page transitions
+  shimmer: ^3.0.0  # Loading shimmer effects
+  socket_io_client: ^3.0.1
+  flutter_image_compress: ^2.3.0
+  fl_chart: ^0.70.2  # For analytics
+  onesignal_flutter: ^5.2.6  # Alternative to Firebase for Iraq
+  path_provider: ^2.1.2
+  lottie: ^3.1.2  # Lottie animations
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/lottie/
+    - assets/fonts/
+
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-Medium.ttf
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+        - asset: assets/fonts/Poppins-Bold.ttf
+
+# App Icon Configuration - Uses IRAQ BID logo from assets
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/app_icon.jpeg"
+  adaptive_icon_background: "#FFFFFF"  # White background
+  adaptive_icon_foreground: "assets/images/app_icon.jpeg"
