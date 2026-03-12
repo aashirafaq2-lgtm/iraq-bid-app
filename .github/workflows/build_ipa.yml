@@ -11,16 +11,17 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.19.0'
-          channel: 'stable'
           cache: true
 
-      - name: Install Dependencies
-        run: flutter pub get
+      - name: Clean and Prepare
+        run: |
+          flutter clean
+          flutter pub get
 
       - name: Build IPA
         run: |
           mkdir -p build/ios/ipa
-          flutter build ipa --release --no-codesign
+          flutter build ipa --release --no-codesign --no-pub
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
