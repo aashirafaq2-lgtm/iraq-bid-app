@@ -13,20 +13,21 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Ensure Core Files
+      - name: Ensure iOS Files Exist
         run: |
           flutter config --no-analytics
           flutter pub get
-          # This command ensures the ios/Flutter directory and helper scripts exist
+          # This forces flutter to generate the ios/Flutter directory and podhelper.rb
           flutter precache --ios
           
-      - name: Build iOS Application
+      - name: Build iOS
         run: |
-          # Now that files exist, build will work
+          # Use no-codesign to generate the .app bundle
           flutter build ios --release --no-codesign --verbose
           
       - name: Create IPA Package
         run: |
+          # Packaging the .app into a .ipa manually for easy download
           mkdir -p Payload
           find build/ios/iphoneos -name "*.app" -exec cp -r {} Payload/ \;
           zip -r release-ipa.ipa Payload
