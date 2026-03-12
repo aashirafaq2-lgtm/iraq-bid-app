@@ -13,12 +13,16 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Get Dependencies
-        run: flutter pub get
-
+      - name: Ensure Core Files
+        run: |
+          flutter config --no-analytics
+          flutter pub get
+          # This command ensures the ios/Flutter directory and helper scripts exist
+          flutter precache --ios
+          
       - name: Build iOS Application
         run: |
-          # Flutter build command will handle pod install internally if Podfile is correct
+          # Now that files exist, build will work
           flutter build ios --release --no-codesign --verbose
           
       - name: Create IPA Package

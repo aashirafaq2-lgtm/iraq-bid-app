@@ -1,17 +1,17 @@
-name: bidmaster
+﻿name: bidmaster
 description: "A new Flutter project."
 publish_to: 'none'
 
 version: 1.0.1+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ^3.0.0
 
 dependencies:
   flutter:
-    sdk: flutter
+    sdk: ^3.0.0
   flutter_localizations:
-    sdk: flutter
+    sdk: ^3.0.0
 
   cupertino_icons: ^1.0.8
   go_router: ^16.3.0
@@ -37,7 +37,7 @@ dependencies:
 
 dev_dependencies:
   flutter_test:
-    sdk: flutter
+    sdk: ^3.0.0
 
   flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.13.1
