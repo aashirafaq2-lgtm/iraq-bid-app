@@ -33,6 +33,18 @@ dependencies:
   path: ^1.9.1
   app_links: ^6.1.1
   google_fonts: ^6.2.1
+  
+  # Added back missing dependencies
+  flutter_animate: ^4.5.0
+  animations: ^2.0.11
+  equatable: ^2.0.5
+  fl_chart: ^0.70.2
+  flutter_dotenv: ^5.2.1
+  flutter_shaders: ^0.1.3
+  get: ^4.6.6
+  get_storage: ^2.1.1
+  lottie: ^3.3.2
+  socket_io_client: ^3.1.2
 
 dev_dependencies:
   flutter_test:
