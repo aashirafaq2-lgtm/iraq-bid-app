@@ -13,14 +13,20 @@ jobs:
           flutter-version: '3.19.0'
           cache: true
 
-      - name: Prep and Build
+      - name: Build iOS Application
         run: |
           flutter pub get
-          # Create dummy directory if missing to satisfy some plugins
-          mkdir -p build/ios/ipa
-          # Use --no-codesign and continue even if some non-critical steps fail
-          flutter build ipa --release --no-codesign --verbose || echo "Build failed, checking logs"
+          # Building .app instead of IPA directly to bypass signing strictness
+          flutter build ios --release --no-codesign --verbose
           
+      - name: Create IPA Package
+        run: |
+          mkdir -p Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
+          zip -r release-ipa.ipa Payload
+          mkdir -p build/ios/ipa
+          mv release-ipa.ipa build/ios/ipa/
+
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
