@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
 jobs:
   build:
-    runs-on: macos-13 # Specific version for stability
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       
@@ -19,9 +19,7 @@ jobs:
 
       - name: Build IPA
         run: |
-          cd ios
-          # Ensure pods are handled correctly by flutter build
-          cd ..
+          mkdir -p build/ios/ipa
           flutter build ipa --release --no-codesign
 
       - name: Upload IPA
