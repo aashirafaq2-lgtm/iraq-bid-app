@@ -356,31 +356,31 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- DUAL HERO ACTION CARDS ("Company Product" & "Live Sales") ---
+  // --- DUAL HERO ACTION CARDS ("Our Product" & "Sellers") ---
   Widget _buildDualActionCards(bool isArabic) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          // 1. Company Product Card (Peach/Amber Tint)
+          // 1. Our Product Card (Peach/Amber Tint)
           Expanded(
             child: GestureDetector(
               onTap: () {
                 _searchController.clear();
-                _onCategorySelected('Luxury');
+                _onCategorySelected('All');
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      isArabic ? 'عرض منتجات الشركة الموثقة' : 'Filtering Verified Company Products',
+                      isArabic ? 'عرض منتجاتنا الموثقة' : 'Filtering Our Products',
                     ),
                     duration: const Duration(seconds: 1),
-                    backgroundColor: const Color(0xFFEA580C),
+                    backgroundColor: const Color(0xFF1E3A8A),
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF7ED),
                   borderRadius: BorderRadius.circular(16),
@@ -395,31 +395,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFEDD5),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.apartment_rounded, color: Color(0xFFEA580C), size: 19),
-                    ),
-                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        isArabic ? 'منتجات\nالشركة' : 'Company\nProduct',
+                        isArabic ? 'منتجاتنا' : 'Our Product',
                         style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF9A3412),
-                          height: 1.2,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF1E293B),
+                          letterSpacing: -0.2,
                         ),
                       ),
                     ),
                     Icon(
                       isArabic ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
-                      size: 18,
-                      color: const Color(0xFFEA580C),
+                      size: 20,
+                      color: const Color(0xFF1E293B),
                     ),
                   ],
                 ),
@@ -429,14 +419,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const SizedBox(width: 12),
 
-          // 2. Live Sales Hot Card (Pink/Red Tint)
+          // 2. Sellers Card (Pink/Red Tint)
           Expanded(
             child: GestureDetector(
               onTap: () {
-                context.push('/live-sales');
+                _searchController.clear();
+                _onCategorySelected('All');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      isArabic ? 'عرض منتجات البائعين المعتمدين' : 'Filtering Sellers Marketplace',
+                    ),
+                    duration: const Duration(seconds: 1),
+                    backgroundColor: const Color(0xFFE11D48),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF1F2),
                   borderRadius: BorderRadius.circular(16),
@@ -451,30 +452,20 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFE4E6),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.bolt_rounded, color: Color(0xFFE11D48), size: 21),
-                    ),
-                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        isArabic ? 'تخفيضات\nحصرية' : 'Live\nSales',
+                        isArabic ? 'البائعين' : 'Sellers',
                         style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFFBE123C),
-                          height: 1.2,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFFE11D48),
+                          letterSpacing: -0.2,
                         ),
                       ),
                     ),
                     Icon(
                       isArabic ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
-                      size: 18,
+                      size: 20,
                       color: const Color(0xFFE11D48),
                     ),
                   ],
