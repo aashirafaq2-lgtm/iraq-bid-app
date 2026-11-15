@@ -101,6 +101,21 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     socketService.joinProductRoom(widget.productId);
     socketService.onBidUpdate((data) {
       if (mounted) {
+        // Instant real-time socket update for anyone watching the item
+        final newPrice = data['currentPrice'];
+        final totalB = data['totalBids'];
+        if (newPrice != null && _product != null) {
+          final priceVal = (newPrice is num) ? newPrice.toDouble() : double.tryParse(newPrice.toString()) ?? _product!.currentBid;
+          setState(() {
+            _product = _product!.copyWith(
+              currentBid: priceVal,
+              totalBids: (totalB is int) ? totalB : (_product!.totalBids ?? 0) + 1,
+            );
+            if (_bidAmount <= (priceVal ?? 0).toInt()) {
+              _bidAmount = (priceVal ?? 0).toInt() + 1;
+            }
+          });
+        }
         _loadProductData();
       }
     });
@@ -299,7 +314,18 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       );
 
       if (mounted) {
-        setState(() => _isSubmittingBid = false);
+        // Immediate local optimistic state update so price and stepper change instantly!
+        setState(() {
+          _isSubmittingBid = false;
+          if (_product != null) {
+            _product = _product!.copyWith(
+              currentBid: _bidAmount.toDouble(),
+              totalBids: (_product!.totalBids ?? 0) + 1,
+            );
+          }
+          _bidAmount = _bidAmount + 1; // Auto advance stepper to next bid
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
