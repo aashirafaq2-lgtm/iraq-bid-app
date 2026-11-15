@@ -10,6 +10,7 @@ import '../services/storage_service.dart';
 import '../services/socket_service.dart';
 import '../services/language_service.dart';
 import 'place_bid_modal.dart';
+import '../widgets/auction_reminder_modal.dart';
 
 class ProductDetailsScreen extends StatefulWidget {
   final String productId;
@@ -519,9 +520,16 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 left: isArabic ? 16 : null,
                 child: Row(
                   children: [
-                    // Notification Button
+                    // Notification / Reminder Bell Button (Opens exact Set Auction Reminder Modal)
                     GestureDetector(
-                      onTap: () => context.push('/notifications'),
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        AuctionReminderModal.show(
+                          context,
+                          productTitle: localizedTitle,
+                          remainingTime: _remainingTime,
+                        );
+                      },
                       child: Container(
                         width: 40,
                         height: 40,
@@ -536,27 +544,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                             ),
                           ],
                         ),
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            const Icon(
-                              Icons.notifications_none_rounded,
-                              size: 20,
-                              color: Color(0xFF0284C7),
-                            ),
-                            Positioned(
-                              top: 9,
-                              right: 9,
-                              child: Container(
-                                width: 6,
-                                height: 6,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFEF4444),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                          ],
+                        child: const Icon(
+                          Icons.notifications_none_rounded,
+                          size: 22,
+                          color: Color(0xFF0284C7),
                         ),
                       ),
                     ),
