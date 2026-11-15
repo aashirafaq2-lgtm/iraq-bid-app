@@ -1,0 +1,41 @@
+name: Build and Release IPA
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Ensure iOS Files Exist
+        run: |
+          flutter config --no-analytics
+          flutter pub get
+          # This forces flutter to generate the ios/Flutter directory and podhelper.rb
+          flutter precache --ios
+          
+      - name: Build iOS
+        run: |
+          # Use no-codesign to generate the .app bundle
+          flutter build ios --release --no-codesign --verbose
+          
+      - name: Create IPA Package
+        run: |
+          # Packaging the .app into a .ipa manually for easy download
+          mkdir -p Payload
+          find build/ios/iphoneos -name "*.app" -exec cp -r {} Payload/ \;
+          zip -r release-ipa.ipa Payload
+          mkdir -p build/ios/ipa
+          mv release-ipa.ipa build/ios/ipa/
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-ipa
+          path: build/ios/ipa/*.ipa

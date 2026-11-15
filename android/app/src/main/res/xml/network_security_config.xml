@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Default: HTTPS only (secure by default) -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+    
+    <!-- Allow HTTP only for local development/testing -->
+    <!-- Production uses HTTPS (api.mazaadati.com) -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <!-- Android emulator localhost -->
+    </domain-config>
+    
+    <!-- Production domains - HTTPS only -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.mazaadati.com</domain>
+        <domain includeSubdomains="true">mazaadati.com</domain>
+    </domain-config>
+</network-security-config>
+

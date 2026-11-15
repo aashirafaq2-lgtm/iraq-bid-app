@@ -1,0 +1,66 @@
+name: Bidmaster
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.1+12
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  go_router: ^16.3.0
+  dio: ^5.7.0
+  shared_preferences: ^2.5.3
+  intl: ^0.20.2
+  provider: ^6.1.2
+  image_picker: ^1.1.2
+  share_plus: ^10.1.4
+  url_launcher: ^6.3.1
+  flutter_svg: ^2.0.16
+  shimmer: ^3.0.0
+  cached_network_image: ^3.4.1
+  onesignal_flutter: ^5.2.6
+  flutter_image_compress: ^2.3.0
+  connectivity_plus: ^6.1.0
+  sqflite: ^2.4.1
+  path_provider: ^2.1.5
+  path: ^1.9.1
+  app_links: ^6.1.1
+  google_fonts: ^6.2.1
+  
+  # Added back missing dependencies
+  flutter_animate: ^4.5.0
+  animations: ^2.0.11
+  equatable: ^2.0.5
+  fl_chart: any
+  flutter_dotenv: ^5.2.1
+  flutter_shaders: ^0.1.3
+  get: ^4.6.6
+  get_storage: ^2.1.1
+  lottie: ^3.5.1
+  socket_io_client: ^3.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/logo.png"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+    - assets/images/
+    - assets/icons/
+    - assets/lang/
