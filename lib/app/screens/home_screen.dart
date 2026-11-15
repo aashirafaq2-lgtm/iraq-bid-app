@@ -149,43 +149,23 @@ class _HomeScreenState extends State<HomeScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 3.5,
-                                    height: 16,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF0284C7),
-                                      borderRadius: BorderRadius.circular(2),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    isArabic ? 'المزادات الحية الحالية' : 'Live Auction Catalog',
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w800,
-                                      color: Color(0xFF0F172A),
-                                      letterSpacing: -0.2,
-                                    ),
-                                  ),
-                                ],
-                              ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                width: 3.5,
+                                height: 16,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF1F5F9),
-                                  borderRadius: BorderRadius.circular(12),
+                                  color: const Color(0xFF0284C7),
+                                  borderRadius: BorderRadius.circular(2),
                                 ),
-                                child: Text(
-                                  '${_products.length} ${isArabic ? "مزاد" : "Auctions"}',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF64748B),
-                                  ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                isArabic ? 'المزادات الحية الحالية' : 'Live Auction Catalog',
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF0F172A),
+                                  letterSpacing: -0.2,
                                 ),
                               ),
                             ],
