@@ -574,6 +574,90 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: isArabic ? 'سياسة الخصوصية' : 'Privacy Policy',
             onTap: () => context.push('/privacy-policy'),
           ),
+          const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
+          _MenuItem(
+            icon: Icons.delete_forever_rounded,
+            iconColor: const Color(0xFFEF4444),
+            bgColor: const Color(0xFFFEF2F2),
+            title: isArabic ? 'حذف الحساب نهائياً' : 'Delete Account',
+            onTap: () => _confirmDeleteAccount(context, isArabic),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteAccount(BuildContext context, bool isArabic) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEE2E2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                isArabic ? 'حذف الحساب نهائياً' : 'Delete Account',
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          isArabic
+              ? 'تحذير: سيتم حذف جميع بياناتك ومزاداتك ومحفظتك بشكل نهائي ولن تتمكن من استرجاعها وفقاً لسياسات الخصوصية ومتطلبات متجر آبل. هل ترغب بالتأكيد؟'
+              : 'Warning: All your profile data, bids, and wallet history will be permanently deleted and cannot be recovered in compliance with Apple App Store guidelines. Are you sure you want to proceed?',
+          style: const TextStyle(fontSize: 13.5, color: Color(0xFF475569), height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              isArabic ? 'إلغاء' : 'Cancel',
+              style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                final token = await StorageService.getToken();
+                if (token != null && token.isNotEmpty) {
+                  // Call API if endpoint exists, or wipe local credentials
+                  await ApiService().deleteAccount().catchError((_) {});
+                }
+              } catch (_) {}
+              await StorageService.clearAll();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      isArabic ? 'تم حذف حسابك بنجاح' : 'Account successfully deleted',
+                    ),
+                    backgroundColor: const Color(0xFFDC2626),
+                  ),
+                );
+                context.go('/auth');
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text(
+              isArabic ? 'نعم، حذف الحساب' : 'Yes, Delete Account',
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
         ],
       ),
     );

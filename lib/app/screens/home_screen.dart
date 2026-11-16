@@ -362,7 +362,7 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          // 1. Our Product Card (Peach/Amber Tint)
+          // 1. Our Product Card (Luxury Warm Cream/Gold Gradient)
           Expanded(
             child: GestureDetector(
               onTap: () {
@@ -371,7 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      isArabic ? 'عرض منتجاتنا الموثقة' : 'Filtering Our Products',
+                      isArabic ? 'عرض منتجاتنا المعتمدة' : 'Filtering Our Products',
                     ),
                     duration: const Duration(seconds: 1),
                     backgroundColor: const Color(0xFF1E3A8A),
@@ -380,14 +380,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                height: 52,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF7ED),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFF7ED), Color(0xFFFFEDD5)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFFFEDD5)),
+                  border: Border.all(color: const Color(0xFFFED7AA), width: 1.2),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFEA580C).withValues(alpha: 0.05),
+                      color: const Color(0xFFF97316).withOpacity(0.08),
                       blurRadius: 10,
                       offset: const Offset(0, 3),
                     ),
@@ -395,12 +400,26 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: Row(
                   children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF97316).withOpacity(0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.verified_rounded,
+                        color: Color(0xFFEA580C),
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         isArabic ? 'منتجاتنا' : 'Our Product',
                         style: const TextStyle(
                           fontSize: 14,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w800,
                           color: Color(0xFF1E293B),
                           letterSpacing: -0.2,
                         ),
@@ -419,7 +438,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const SizedBox(width: 12),
 
-          // 2. Sellers Card (Pink/Red Tint)
+          // 2. Sellers Card (Soft Rose/Ruby Gradient)
           Expanded(
             child: GestureDetector(
               onTap: () {
@@ -437,14 +456,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                height: 52,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF1F2),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFF1F2), Color(0xFFFFE4E6)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFFFE4E6)),
+                  border: Border.all(color: const Color(0xFFFECDD3), width: 1.2),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFE11D48).withValues(alpha: 0.05),
+                      color: const Color(0xFFE11D48).withOpacity(0.08),
                       blurRadius: 10,
                       offset: const Offset(0, 3),
                     ),
@@ -452,12 +476,26 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: Row(
                   children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE11D48).withOpacity(0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.storefront_rounded,
+                        color: Color(0xFFE11D48),
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         isArabic ? 'البائعين' : 'Sellers',
                         style: const TextStyle(
                           fontSize: 14,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w800,
                           color: Color(0xFFE11D48),
                           letterSpacing: -0.2,
                         ),
@@ -484,7 +522,7 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          // 1. LUCKY WHEEL CARD
+          // 1. LUCKY WHEEL CARD (Matching Exact Reference Layout)
           Expanded(
             child: GestureDetector(
               onTap: () {
@@ -498,16 +536,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
               child: Container(
-                height: 105,
-                padding: const EdgeInsets.all(10),
+                height: 110,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFFFBEB), Color(0xFFFEF3C7)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFFDE68A)),
+                  color: const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFFDE68A), width: 1.2),
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFFD97706).withOpacity(0.08),
@@ -518,18 +552,44 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: Row(
                   children: [
-                    // Wheel Visual Container
+                    // Detailed Lucky Wheel Graphic with multi-colored radial slices
                     Container(
-                      width: 48,
-                      height: 48,
-                      decoration: const BoxDecoration(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [Color(0xFFF59E0B), Color(0xFFDC2626)],
+                        gradient: const SweepGradient(
+                          colors: [
+                            Color(0xFFEF4444),
+                            Color(0xFFFFFFFF),
+                            Color(0xFFEF4444),
+                            Color(0xFFFFFFFF),
+                            Color(0xFFEF4444),
+                            Color(0xFFFFFFFF),
+                            Color(0xFFEF4444),
+                          ],
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFD97706).withOpacity(0.25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                        border: Border.all(color: const Color(0xFFF59E0B), width: 2.5),
                       ),
-                      child: const Center(
-                        child: Icon(Icons.stars_rounded, color: Colors.white, size: 28),
+                      child: Center(
+                        child: Container(
+                          width: 18,
+                          height: 18,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFD97706),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Center(
+                            child: Icon(Icons.star_rounded, color: Colors.white, size: 12),
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -540,40 +600,56 @@ class _HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            isArabic ? 'عجلة الحظ' : 'Lucky Wheel',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF92400E),
-                            ),
+                          Row(
+                            children: [
+                              Text(
+                                isArabic ? 'عجلة الحظ' : 'Lucky Wheel',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF78350F),
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              const Icon(Icons.auto_awesome, size: 12, color: Color(0xFFF59E0B)),
+                            ],
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            isArabic ? 'دوّر واربح رصيداً' : 'Spin Daily & Win Bid Credit',
-                            maxLines: 1,
+                            isArabic ? 'دوّر يومياً واربح رصيد' : 'Spin Daily & Win Bid Credit',
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFFB45309),
+                              color: Color(0xFF92400E),
+                              height: 1.15,
                             ),
                           ),
                           const SizedBox(height: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
                                 colors: [Color(0xFFEA580C), Color(0xFFF97316)],
                               ),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFEA580C).withOpacity(0.3),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
                             child: Text(
                               isArabic ? 'العب الآن >' : 'SPIN NOW >',
                               style: const TextStyle(
                                 fontSize: 9,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w900,
                                 color: Colors.white,
+                                letterSpacing: 0.3,
                               ),
                             ),
                           ),
@@ -588,7 +664,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const SizedBox(width: 10),
 
-          // 2. DAILY CHALLENGE CARD
+          // 2. DAILY CHALLENGE CARD (Matching Exact Reference Layout)
           Expanded(
             child: GestureDetector(
               onTap: () {
@@ -602,16 +678,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
               child: Container(
-                height: 105,
-                padding: const EdgeInsets.all(10),
+                height: 110,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFF5F3FF), Color(0xFFEDE9FE)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFDDD6FE)),
+                  color: const Color(0xFFFAF5FF),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFE9D5FF), width: 1.2),
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFF7C3AED).withOpacity(0.08),
@@ -622,22 +694,138 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: Stack(
                   children: [
+                    // Pill Badge at Top Right (Daily Prize)
+                    Positioned(
+                      top: 0,
+                      right: isArabic ? null : 0,
+                      left: isArabic ? 0 : null,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF7C3AED),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.card_giftcard, size: 9, color: Colors.white),
+                            const SizedBox(width: 3),
+                            Text(
+                              isArabic ? 'جائزة يومية' : 'Daily Prize',
+                              style: const TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
                     Row(
                       children: [
-                        // Gift Visual Container
+                        // Phone / Gift Trophy Graphic
                         Container(
-                          width: 48,
-                          height: 48,
+                          width: 50,
+                          height: 52,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
                             gradient: const LinearGradient(
-                              colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                              colors: [Color(0xFFC084FC), Color(0xFF7C3AED)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF7C3AED).withOpacity(0.25),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
                           ),
-                          child: const Center(
-                            child: Icon(Icons.card_giftcard_rounded, color: Colors.white, size: 26),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: const [
+                              Icon(Icons.phone_iphone_rounded, color: Colors.white, size: 28),
+                              Positioned(
+                                bottom: 6,
+                                right: 6,
+                                child: Icon(Icons.card_giftcard_rounded, color: Color(0xFFFDE047), size: 16),
+                              ),
+                            ],
                           ),
                         ),
+                        const SizedBox(width: 8),
+
+                        // Texts & Action Button
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(height: 12),
+                              Text(
+                                isArabic ? 'التحدي اليومي' : 'Daily Challenge',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF581C87),
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                isArabic ? "ادعُ واكسب جائزة اليوم" : "Invite More Friends & Win Today's Prize",
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF6B21A8),
+                                  height: 1.15,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF7C3AED), Color(0xFF9333EA)],
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF7C3AED).withOpacity(0.3),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  isArabic ? 'انضم الآن >' : 'JOIN NOW >',
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
                         const SizedBox(width: 8),
 
                         // Texts & Action Button

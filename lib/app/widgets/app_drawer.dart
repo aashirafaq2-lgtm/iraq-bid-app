@@ -303,7 +303,7 @@ class _AppDrawerState extends State<AppDrawer> {
 
   Widget _buildHeader(bool isArabic) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+      padding: const EdgeInsets.fromLTRB(18, 20, 18, 22),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
@@ -317,16 +317,16 @@ class _AppDrawerState extends State<AppDrawer> {
           Row(
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: Colors.white.withOpacity(0.2),
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1.5),
+                  border: Border.all(color: Colors.white.withOpacity(0.35), width: 1.5),
                 ),
-                child: const Icon(Icons.gavel_rounded, color: Colors.white, size: 24),
+                child: const Icon(Icons.gavel_rounded, color: Colors.white, size: 26),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -334,21 +334,22 @@ class _AppDrawerState extends State<AppDrawer> {
                     Text(
                       _isLoggedIn ? (_userName ?? 'Valued User') : (isArabic ? 'مزاد العراق' : 'IRAQ BID'),
                       style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
                         color: Colors.white,
+                        letterSpacing: -0.2,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
                       _isLoggedIn
-                          ? (_userPhone ?? 'Super Premium Member')
-                          : (isArabic ? 'المنصة الأولى للمزادات الحية' : 'Premium Live Auctions'),
+                          ? (_userPhone ?? '+964 770 000 0000')
+                          : (isArabic ? 'المنصة الأولى للمزادات الحية' : 'Live Auctions Platform'),
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.85),
+                        color: Colors.white.withOpacity(0.88),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -369,45 +370,53 @@ class _AppDrawerState extends State<AppDrawer> {
     String? badge,
     Color? badgeColor,
   }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-      visualDensity: VisualDensity.compact,
-      leading: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-        ),
-        child: Icon(icon, size: 19, color: const Color(0xFF0284C7)),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
       ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 13.5,
-          fontWeight: FontWeight.w700,
-          color: Color(0xFF0F172A),
+      child: ListTile(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+        visualDensity: VisualDensity.compact,
+        leading: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, size: 20, color: const Color(0xFF0284C7)),
         ),
-      ),
-      trailing: badge != null
-          ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: (badgeColor ?? const Color(0xFF0284C7)).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                badge,
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w800,
-                  color: badgeColor ?? const Color(0xFF0284C7),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1E293B),
+            letterSpacing: -0.2,
+          ),
+        ),
+        trailing: badge != null
+            ? Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: (badgeColor ?? const Color(0xFF0284C7)).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-              ),
-            )
-          : const Icon(Icons.arrow_forward_ios_rounded, size: 13, color: Color(0xFFCBD5E1)),
-      onTap: onTap,
+                child: Text(
+                  badge,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: badgeColor ?? const Color(0xFF0284C7),
+                  ),
+                ),
+              )
+            : const Icon(Icons.chevron_right_rounded, size: 18, color: Color(0xFF94A3B8)),
+        onTap: onTap,
+      ),
     );
   }
 
@@ -418,22 +427,32 @@ class _AppDrawerState extends State<AppDrawer> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF0284C7) : const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: selected ? const Color(0xFF0284C7) : const Color(0xFFE2E8F0),
+            width: 1.2,
           ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF0284C7).withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         alignment: Alignment.center,
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
             color: selected ? Colors.white : const Color(0xFF475569),
           ),
         ),

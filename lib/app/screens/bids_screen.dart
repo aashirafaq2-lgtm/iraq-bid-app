@@ -107,7 +107,6 @@ class _BidsScreenState extends State<BidsScreen> with SingleTickerProviderStateM
                 ],
               ),
             ),
-            bottomNavigationBar: const BottomNavBar(currentRoute: '/bids'),
           ),
         );
       },

@@ -97,7 +97,6 @@ class _WinsScreenState extends State<WinsScreen> {
                 ],
               ),
             ),
-            bottomNavigationBar: const BottomNavBar(currentRoute: '/wins'),
           ),
         );
       },

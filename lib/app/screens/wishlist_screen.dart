@@ -214,7 +214,6 @@ class _WishlistScreenState extends State<WishlistScreen> {
                 ],
               ),
             ),
-            bottomNavigationBar: const BottomNavBar(currentRoute: '/wishlist'),
           ),
         );
       },

@@ -358,6 +358,25 @@ class AppRouter {
       ),
       // Fullscreen routes (no bottom nav)
       GoRoute(
+        path: '/product/:id',
+        name: 'product',
+        pageBuilder: (context, state) {
+          final id = state.pathParameters['id'] ?? '1';
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: ProductDetailsScreen(productId: id),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              const begin = Offset(1.0, 0.0);
+              const end = Offset.zero;
+              const curve = Curves.easeOutQuart;
+              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              var offsetAnimation = animation.drive(tween);
+              return SlideTransition(position: offsetAnimation, child: child);
+            },
+          );
+        },
+      ),
+      GoRoute(
         path: '/product-details/:id',
         name: 'product-details',
         pageBuilder: (context, state) {
