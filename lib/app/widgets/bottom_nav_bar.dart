@@ -4,15 +4,17 @@ import '../services/language_service.dart';
 
 class BottomNavBar extends StatelessWidget {
   final Function(BuildContext)? onCategoryTap;
+  final String? currentRoute;
 
   const BottomNavBar({
     super.key,
     this.onCategoryTap,
+    this.currentRoute,
   });
 
   @override
   Widget build(BuildContext context) {
-    final currentRoute = GoRouterState.of(context).uri.path;
+    final currentRoute = this.currentRoute ?? GoRouterState.of(context).uri.path;
 
     return ValueListenableBuilder<Locale>(
       valueListenable: LanguageService.languageNotifier,

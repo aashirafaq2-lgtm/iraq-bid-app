@@ -107,7 +107,7 @@ class _BidsScreenState extends State<BidsScreen> with SingleTickerProviderStateM
                 ],
               ),
             ),
-            bottomNavigationBar: const IraqBidBottomNavBar(currentRoute: '/bids'),
+            bottomNavigationBar: const BottomNavBar(currentRoute: '/bids'),
           ),
         );
       },

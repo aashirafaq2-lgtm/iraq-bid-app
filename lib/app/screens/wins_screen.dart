@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -77,7 +78,7 @@ class _WinsScreenState extends State<WinsScreen> {
       valueListenable: LanguageService.languageNotifier,
       builder: (context, locale, _) {
         return Directionality(
-          textDirection: _isArabic ? TextDirection.rtl : TextDirection.ltr,
+          textDirection: _isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
           child: Scaffold(
             backgroundColor: const Color(0xFFF8FAFC),
             body: SafeArea(
@@ -96,7 +97,7 @@ class _WinsScreenState extends State<WinsScreen> {
                 ],
               ),
             ),
-            bottomNavigationBar: const IraqBidBottomNavBar(currentRoute: '/wins'),
+            bottomNavigationBar: const BottomNavBar(currentRoute: '/wins'),
           ),
         );
       },

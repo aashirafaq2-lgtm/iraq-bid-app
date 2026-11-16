@@ -28,6 +28,9 @@ class ProductModel {
   final String? defectDetails;
   final List<String> defectImages;
 
+  final double? buyNowPrice;
+  final DateTime? createdAt;
+
   ProductModel({
     required this.id,
     this.sellerId,
@@ -54,6 +57,8 @@ class ProductModel {
     this.defectAlert = false,
     this.defectDetails,
     this.defectImages = const [],
+    this.buyNowPrice,
+    this.createdAt,
   });
 
   // Helper function to safely parse numeric values from JSON
@@ -130,6 +135,8 @@ class ProductModel {
       defectImages: json['defect_images'] != null
           ? List<String>.from((json['defect_images'] as List).map((e) => e.toString()))
           : const [],
+      buyNowPrice: _parseDouble(json['buy_now_price'] ?? json['buyNowPrice']),
+      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) : null,
     );
   }
 
@@ -158,6 +165,66 @@ class ProductModel {
       'auction_status': auctionStatus,
       'condition': condition,
     };
+  }
+
+  ProductModel copyWith({
+    int? id,
+    int? sellerId,
+    String? title,
+    String? description,
+    String? imageUrl,
+    double? startingPrice,
+    double? startingBid,
+    double? currentPrice,
+    double? currentBid,
+    String? status,
+    DateTime? auctionEndTime,
+    int? totalBids,
+    int? highestBidderId,
+    int? categoryId,
+    String? sellerName,
+    String? sellerEmail,
+    String? sellerPhone,
+    String? categoryName,
+    String? highestBidderName,
+    double? hoursLeft,
+    String? auctionStatus,
+    String? condition,
+    bool? defectAlert,
+    String? defectDetails,
+    List<String>? defectImages,
+    double? buyNowPrice,
+    DateTime? createdAt,
+  }) {
+    return ProductModel(
+      id: id ?? this.id,
+      sellerId: sellerId ?? this.sellerId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      imageUrl: imageUrl ?? this.imageUrl,
+      startingPrice: startingPrice ?? this.startingPrice,
+      startingBid: startingBid ?? this.startingBid,
+      currentPrice: currentPrice ?? this.currentPrice,
+      currentBid: currentBid ?? this.currentBid,
+      status: status ?? this.status,
+      auctionEndTime: auctionEndTime ?? this.auctionEndTime,
+      totalBids: totalBids ?? this.totalBids,
+      highestBidderId: highestBidderId ?? this.highestBidderId,
+      categoryId: categoryId ?? this.categoryId,
+      sellerName: sellerName ?? this.sellerName,
+      sellerEmail: sellerEmail ?? this.sellerEmail,
+      sellerPhone: sellerPhone ?? this.sellerPhone,
+      categoryName: categoryName ?? this.categoryName,
+      highestBidderName: highestBidderName ?? this.highestBidderName,
+      hoursLeft: hoursLeft ?? this.hoursLeft,
+      auctionStatus: auctionStatus ?? this.auctionStatus,
+      condition: condition ?? this.condition,
+      defectAlert: defectAlert ?? this.defectAlert,
+      defectDetails: defectDetails ?? this.defectDetails,
+      defectImages: defectImages ?? this.defectImages,
+      buyNowPrice: buyNowPrice ?? this.buyNowPrice,
+      createdAt: createdAt ?? this.createdAt,
+    );
   }
 
   // Helper method to get image URLs as list (with fixed URLs)

@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:intl/intl.dart';
 import '../models/product_model.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
@@ -179,7 +181,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
       valueListenable: LanguageService.languageNotifier,
       builder: (context, _, __) {
         return Directionality(
-          textDirection: _isArabic ? TextDirection.rtl : TextDirection.ltr,
+          textDirection: _isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
           child: Scaffold(
             backgroundColor: const Color(0xFFF8FAFC),
             body: SafeArea(
@@ -212,7 +214,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                 ],
               ),
             ),
-            bottomNavigationBar: const IraqBidBottomNavBar(currentRoute: '/wishlist'),
+            bottomNavigationBar: const BottomNavBar(currentRoute: '/wishlist'),
           ),
         );
       },

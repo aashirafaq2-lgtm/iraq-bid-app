@@ -159,16 +159,17 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
       final productId = int.tryParse(widget.productId);
       if (productId == null) throw Exception('Invalid product ID');
 
-      final results = await Future.wait([
+      final results = await Future.wait<dynamic>([
         apiService.getProductById(productId),
         StorageService.isInWishlist(productId),
-        apiService.getProducts(limit: 10),
+        apiService.getAllProducts(limit: 10),
       ]);
 
       if (mounted) {
         final prod = results[0] as ProductModel;
         final inWish = results[1] as bool;
-        final allProds = results[2] as List<ProductModel>;
+        final prodsMap = results[2] as Map<String, dynamic>;
+        final allProds = prodsMap['products'] as List<ProductModel>? ?? [];
 
         final currentBidVal = (prod.currentBid ?? prod.startingPrice).toInt();
         // Default bid stepper is current bid + 1
