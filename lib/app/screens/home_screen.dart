@@ -25,6 +25,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   Timer? _searchDebounce;
 
+  // In-memory cache for ultra-fast instant UI rendering
+  static final Map<String, List<ProductModel>> _categoryCache = {};
+
   // Ultra-crisp category tabs matching the reference UI exactly
   final List<Map<String, dynamic>> _categories = [
     {'name': 'All', 'name_ar': 'الكل', 'icon': Icons.grid_view_rounded},
@@ -61,9 +64,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadProducts({bool reset = false}) async {
     if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-    });
+    final cacheKey = '${_selectedCategory}_${_searchController.text.trim()}';
+
+    // Instant show from cache if available so screen loads immediately
+    if (_categoryCache.containsKey(cacheKey) && _categoryCache[cacheKey]!.isNotEmpty) {
+      setState(() {
+        _products = _categoryCache[cacheKey]!;
+        _isLoading = false;
+      });
+    } else if (_products.isEmpty) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
     try {
       final responseMap = await apiService.getAllProducts(
@@ -75,6 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final List<ProductModel> items = responseMap['products'] as List<ProductModel>? ?? [];
 
       if (mounted) {
+        _categoryCache[cacheKey] = items;
         setState(() {
           _products = items;
           _isLoading = false;
@@ -442,18 +456,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Expanded(
             child: GestureDetector(
               onTap: () {
-                _searchController.clear();
-                _onCategorySelected('All');
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      isArabic ? 'عرض منتجات البائعين المعتمدين' : 'Filtering Sellers Marketplace',
-                    ),
-                    duration: const Duration(seconds: 1),
-                    backgroundColor: const Color(0xFFE11D48),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+                context.push('/sellers');
               },
               child: Container(
                 height: 52,

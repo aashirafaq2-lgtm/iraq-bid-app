@@ -91,153 +91,164 @@ class _AppDrawerState extends State<AppDrawer> {
       textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
       child: Drawer(
         backgroundColor: Colors.white,
-        elevation: 16,
+        elevation: 20,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.only(
-            topRight: Radius.circular(isArabic ? 0 : 24),
-            bottomRight: Radius.circular(isArabic ? 0 : 24),
-            topLeft: Radius.circular(isArabic ? 24 : 0),
-            bottomLeft: Radius.circular(isArabic ? 24 : 0),
+            topRight: Radius.circular(isArabic ? 0 : 28),
+            bottomRight: Radius.circular(isArabic ? 0 : 28),
+            topLeft: Radius.circular(isArabic ? 28 : 0),
+            bottomLeft: Radius.circular(isArabic ? 28 : 0),
           ),
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // 1. Luxury Header
-              _buildHeader(isArabic),
+        child: Column(
+          children: [
+            // 1. Luxury Blue Gradient Header (Starts from very top edge)
+            _buildHeader(isArabic),
 
-              // 2. Navigation items list
-              Expanded(
-                child: ListView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  children: [
-                    _buildNavItem(
-                      icon: Icons.home_rounded,
-                      title: isArabic ? 'الرئيسية' : 'Home',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.go('/home');
-                      },
-                    ),
-                    _buildNavItem(
-                      icon: Icons.gavel_rounded,
-                      title: isArabic ? 'مزاداتي المباشرة' : 'My Bids',
-                      badge: 'Live',
-                      badgeColor: const Color(0xFFEF4444),
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.go('/bids');
-                      },
-                    ),
-                    _buildNavItem(
-                      icon: Icons.favorite_rounded,
-                      title: isArabic ? 'قائمة المفضلة' : 'Wishlist',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.go('/wishlist');
-                      },
-                    ),
-                    _buildNavItem(
-                      icon: Icons.emoji_events_rounded,
-                      title: isArabic ? 'المزادات الفائزة' : 'Won Auctions',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.go('/wins');
-                      },
-                    ),
-                    _buildNavItem(
-                      icon: Icons.account_balance_wallet_rounded,
-                      title: isArabic ? 'المحفظة الإلكترونية' : 'Digital Wallet',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/wallet');
-                      },
-                    ),
-                    _buildNavItem(
-                      icon: Icons.person_rounded,
-                      title: isArabic ? 'الملف الشخصي' : 'My Profile',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.go('/profile');
-                      },
-                    ),
+            // 2. Navigation items list
+            Expanded(
+              child: ListView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                children: [
+                  _buildNavItem(
+                    icon: Icons.home_rounded,
+                    title: isArabic ? 'الرئيسية' : 'Home',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.go('/home');
+                    },
+                  ),
+                  _buildNavItem(
+                    icon: Icons.gavel_rounded,
+                    title: isArabic ? 'مزاداتي المباشرة' : 'My Bids',
+                    badge: 'Live',
+                    badgeColor: const Color(0xFFEF4444),
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.go('/bids');
+                    },
+                  ),
+                  _buildNavItem(
+                    icon: Icons.favorite_rounded,
+                    title: isArabic ? 'قائمة المفضلة' : 'Wishlist',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.go('/wishlist');
+                    },
+                  ),
+                  _buildNavItem(
+                    icon: Icons.emoji_events_rounded,
+                    title: isArabic ? 'المزادات الفائزة' : 'Won Auctions',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.go('/wins');
+                    },
+                  ),
+                  _buildNavItem(
+                    icon: Icons.storefront_rounded,
+                    title: isArabic ? 'سوق البائعين' : 'Sellers Marketplace',
+                    badge: 'New',
+                    badgeColor: const Color(0xFFE11D48),
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.push('/sellers');
+                    },
+                  ),
+                  _buildNavItem(
+                    icon: Icons.account_balance_wallet_rounded,
+                    title: isArabic ? 'المحفظة الإلكترونية' : 'Digital Wallet',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.push('/wallet');
+                    },
+                  ),
+                  _buildNavItem(
+                    icon: Icons.person_rounded,
+                    title: isArabic ? 'الملف الشخصي' : 'My Profile',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.go('/profile');
+                    },
+                  ),
 
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Divider(color: Color(0xFFF1F5F9), thickness: 1.2),
-                    ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Divider(color: Color(0xFFF1F5F9), thickness: 1.2),
+                  ),
 
-                    // Language Quick Switch Section
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      child: Text(
-                        isArabic ? 'اللغة / Language' : 'Language / اللغة',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF64748B),
-                        ),
+                  // Language Quick Switch Section
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Text(
+                      isArabic ? 'اللغة / Language' : 'Language / اللغة',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF64748B),
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildLangToggleBtn(
-                            label: 'العربية',
-                            selected: _selectedLanguage == 'Arabic',
-                            onTap: () => _selectLanguage('Arabic'),
-                          ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildLangToggleBtn(
+                          label: 'العربية',
+                          selected: _selectedLanguage == 'Arabic',
+                          onTap: () => _selectLanguage('Arabic'),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildLangToggleBtn(
-                            label: 'English',
-                            selected: _selectedLanguage == 'English',
-                            onTap: () => _selectLanguage('English'),
-                          ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildLangToggleBtn(
+                          label: 'English',
+                          selected: _selectedLanguage == 'English',
+                          onTap: () => _selectLanguage('English'),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
+                  ),
 
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Divider(color: Color(0xFFF1F5F9), thickness: 1.2),
-                    ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Divider(color: Color(0xFFF1F5F9), thickness: 1.2),
+                  ),
 
-                    // Support & App
-                    _buildNavItem(
-                      icon: Icons.headset_mic_rounded,
-                      title: isArabic ? 'الدعم الفني وخدمة العملاء' : 'Customer Support',
-                      onTap: () {
-                        Navigator.pop(context);
-                        _showSupportDialog(context, isArabic);
-                      },
-                    ),
-                    _buildNavItem(
-                      icon: Icons.share_rounded,
-                      title: isArabic ? 'مشاركة التطبيق' : 'Share App',
-                      onTap: () {
-                        Navigator.pop(context);
-                        _shareApp();
-                      },
-                    ),
-                    _buildNavItem(
-                      icon: Icons.info_outline_rounded,
-                      title: isArabic ? 'عن مزاد العراق' : 'About IRAQ BID',
-                      onTap: () {
-                        Navigator.pop(context);
-                        _showAboutDialog(context, isArabic);
-                      },
-                    ),
-                  ],
-                ),
+                  // Support & App
+                  _buildNavItem(
+                    icon: Icons.headset_mic_rounded,
+                    title: isArabic ? 'الدعم الفني وخدمة العملاء' : 'Customer Support',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showSupportDialog(context, isArabic);
+                    },
+                  ),
+                  _buildNavItem(
+                    icon: Icons.share_rounded,
+                    title: isArabic ? 'مشاركة التطبيق' : 'Share App',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _shareApp();
+                    },
+                  ),
+                  _buildNavItem(
+                    icon: Icons.info_outline_rounded,
+                    title: isArabic ? 'عن مزاد العراق' : 'About IRAQ BID',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showAboutDialog(context, isArabic);
+                    },
+                  ),
+                ],
               ),
+            ),
 
-              // 3. Bottom Auth Button
-              Container(
-                padding: const EdgeInsets.all(16),
+            // 3. Bottom Auth Button (Pinned cleanly at the bottom)
+            SafeArea(
+              top: false,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   border: Border(
@@ -294,8 +305,8 @@ class _AppDrawerState extends State<AppDrawer> {
                         ),
                       ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -303,7 +314,13 @@ class _AppDrawerState extends State<AppDrawer> {
 
   Widget _buildHeader(bool isArabic) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 20, 18, 22),
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(
+        18,
+        MediaQuery.of(context).padding.top + 16,
+        18,
+        22,
+      ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFF0284C7), Color(0xFF0369A1)],

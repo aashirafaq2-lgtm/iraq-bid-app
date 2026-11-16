@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/language_service.dart';
+import '../services/api_service.dart';
 
 class LuxuryBannerCarousel extends StatefulWidget {
   const LuxuryBannerCarousel({super.key});
@@ -15,8 +15,11 @@ class _LuxuryBannerCarouselState extends State<LuxuryBannerCarousel> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   Timer? _autoScrollTimer;
+  List<Map<String, dynamic>> _displayBanners = [];
+  bool _isLoading = false;
 
-  final List<Map<String, dynamic>> _banners = [
+  // Curated Luxury Fallbacks
+  static const List<Map<String, dynamic>> _fallbackBanners = [
     {
       'badge_en': 'LIMITED TIME',
       'badge_ar': 'لفترة محدودة',
@@ -24,8 +27,6 @@ class _LuxuryBannerCarouselState extends State<LuxuryBannerCarousel> {
       'title_ar': 'عروض استثنائية',
       'subtitle_en': 'Bid & Save on Amazing Products',
       'subtitle_ar': 'زايد ووفر على أفضل الأجهزة الذكية',
-      'discount_en': 'UP TO\n50% OFF',
-      'discount_ar': 'خصم حتى\n50%',
       'bg_gradient': [Color(0xFFEBF4FF), Color(0xFFD6E8FE)],
       'btn_color': Color(0xFFEA580C),
       'image_url': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80',
@@ -37,8 +38,6 @@ class _LuxuryBannerCarouselState extends State<LuxuryBannerCarousel> {
       'title_ar': 'أرقى الساعات العالمية',
       'subtitle_en': 'Certified Swiss & Designer Watches',
       'subtitle_ar': 'ساعات سويسرية وأصلية 100%',
-      'discount_en': 'TOP\nTIER',
-      'discount_ar': 'إصدار\nحصري',
       'bg_gradient': [Color(0xFFF5F3FF), Color(0xFFDDD6FE)],
       'btn_color': Color(0xFF7C3AED),
       'image_url': 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80',
@@ -50,8 +49,6 @@ class _LuxuryBannerCarouselState extends State<LuxuryBannerCarousel> {
       'title_ar': 'أقوى منصات الألعاب',
       'subtitle_en': 'PS5, Xbox & High-End Peripherals',
       'subtitle_ar': 'أجهزة بلايستيشن وإكس بوكس وملحقاتها',
-      'discount_en': 'HOT\nAUCTION',
-      'discount_ar': 'مزاد\nمشتعل',
       'bg_gradient': [Color(0xFFFEF2F2), Color(0xFFFECACA)],
       'btn_color': Color(0xFFEF4444),
       'image_url': 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=800&q=80',
@@ -63,8 +60,6 @@ class _LuxuryBannerCarouselState extends State<LuxuryBannerCarousel> {
       'title_ar': 'أجهزة المطبخ والمنزل',
       'subtitle_en': 'Modern Living at Lowest Winning Bids',
       'subtitle_ar': 'حياة عصرية بأقل تكاليف الفوز بالمزاد',
-      'discount_en': 'SAVE\nBIG',
-      'discount_ar': 'توفير\nكبير',
       'bg_gradient': [Color(0xFFECFDF5), Color(0xFFA7F3D0)],
       'btn_color': Color(0xFF10B981),
       'image_url': 'https://images.unsplash.com/photo-1583394838336-acd977736f90?w=800&q=80',
@@ -76,8 +71,6 @@ class _LuxuryBannerCarouselState extends State<LuxuryBannerCarousel> {
       'title_ar': 'أحدث الهواتف الذكية',
       'subtitle_en': 'iPhone 16 Pro, Galaxy S25 Ultra',
       'subtitle_ar': 'آيفون وجالكسي بأعلى جودة وضمان',
-      'discount_en': 'VERIFIED\nSTOCK',
-      'discount_ar': 'بضاعة\nموثقة',
       'bg_gradient': [Color(0xFFFFFBEB), Color(0xFFFDE68A)],
       'btn_color': Color(0xFFD97706),
       'image_url': 'https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=800&q=80',
@@ -87,9 +80,17 @@ class _LuxuryBannerCarouselState extends State<LuxuryBannerCarousel> {
   @override
   void initState() {
     super.initState();
+    _displayBanners = List.from(_fallbackBanners);
+    _loadBannersFromApi();
+    _startTimer();
+  }
+
+  void _startTimer() {
+    _autoScrollTimer?.cancel();
+    if (_displayBanners.isEmpty) return;
     _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!mounted) return;
-      if (_currentPage < _banners.length - 1) {
+      if (!mounted || _displayBanners.isEmpty) return;
+      if (_currentPage < _displayBanners.length - 1) {
         _currentPage++;
       } else {
         _currentPage = 0;
@@ -102,6 +103,35 @@ class _LuxuryBannerCarouselState extends State<LuxuryBannerCarousel> {
     });
   }
 
+  Future<void> _loadBannersFromApi() async {
+    try {
+      final banners = await ApiService().getBanners();
+      if (banners.isNotEmpty && mounted) {
+        final List<Map<String, dynamic>> apiBanners = [];
+        for (int i = 0; i < banners.length; i++) {
+          final b = banners[i];
+          final img = b['imageUrl']?.toString() ?? b['image_url']?.toString() ?? '';
+          if (img.isNotEmpty) {
+            apiBanners.add({
+              'is_api_banner': true,
+              'image_url': img,
+              'title_en': b['title']?.toString() ?? 'Special Featured Deal',
+              'title_ar': b['title']?.toString() ?? 'عرض خاص مميز',
+              'link': b['link']?.toString() ?? '',
+            });
+          }
+        }
+        if (apiBanners.isNotEmpty) {
+          setState(() {
+            _displayBanners = apiBanners;
+            _currentPage = 0;
+          });
+          _startTimer();
+        }
+      }
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
     _autoScrollTimer?.cancel();
@@ -112,6 +142,7 @@ class _LuxuryBannerCarouselState extends State<LuxuryBannerCarousel> {
   @override
   Widget build(BuildContext context) {
     final isArabic = LanguageService.isArabic;
+    if (_displayBanners.isEmpty) return const SizedBox.shrink();
 
     return Column(
       children: [
@@ -120,10 +151,49 @@ class _LuxuryBannerCarouselState extends State<LuxuryBannerCarousel> {
           child: PageView.builder(
             controller: _pageController,
             onPageChanged: (idx) => setState(() => _currentPage = idx),
-            itemCount: _banners.length,
+            itemCount: _displayBanners.length,
             itemBuilder: (context, index) {
-              final b = _banners[index];
+              final b = _displayBanners[index];
+              final isApiBanner = b['is_api_banner'] == true;
+
+              if (isApiBanner) {
+                // Admin dynamic uploaded banner image
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: CachedNetworkImage(
+                      imageUrl: b['image_url'],
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      placeholder: (_, __) => Container(
+                        color: const Color(0xFFF1F5F9),
+                        child: const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                      errorWidget: (_, __, ___) => Container(
+                        color: const Color(0xFFF1F5F9),
+                        child: const Icon(Icons.broken_image_rounded, color: Color(0xFF94A3B8), size: 36),
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              // Fallback rich stylized banner
               final gradient = b['bg_gradient'] as List<Color>;
+              final btnColor = b['btn_color'] as Color;
 
               return Container(
                 margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -136,7 +206,7 @@ class _LuxuryBannerCarouselState extends State<LuxuryBannerCarousel> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: (b['btn_color'] as Color).withValues(alpha: 0.12),
+                      color: btnColor.withOpacity(0.12),
                       blurRadius: 20,
                       offset: const Offset(0, 8),
                     ),
@@ -169,8 +239,8 @@ class _LuxuryBannerCarouselState extends State<LuxuryBannerCarousel> {
                               begin: isArabic ? Alignment.centerRight : Alignment.centerLeft,
                               end: isArabic ? Alignment.centerLeft : Alignment.centerRight,
                               colors: [
-                                gradient.first.withValues(alpha: 0.95),
-                                gradient.first.withValues(alpha: 0.6),
+                                gradient.first.withOpacity(0.95),
+                                gradient.first.withOpacity(0.6),
                                 Colors.transparent,
                               ],
                               stops: const [0.0, 0.6, 1.0],
@@ -190,7 +260,7 @@ class _LuxuryBannerCarouselState extends State<LuxuryBannerCarousel> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.9),
+                                color: Colors.white.withOpacity(0.9),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
@@ -237,11 +307,11 @@ class _LuxuryBannerCarouselState extends State<LuxuryBannerCarousel> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                               decoration: BoxDecoration(
-                                color: b['btn_color'] as Color,
+                                color: btnColor,
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: (b['btn_color'] as Color).withValues(alpha: 0.35),
+                                    color: btnColor.withOpacity(0.35),
                                     blurRadius: 10,
                                     offset: const Offset(0, 4),
                                   ),
@@ -283,7 +353,7 @@ class _LuxuryBannerCarouselState extends State<LuxuryBannerCarousel> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(
-            _banners.length,
+            _displayBanners.length,
             (idx) => AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOutCubic,

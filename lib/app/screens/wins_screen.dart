@@ -21,6 +21,8 @@ class _WinsScreenState extends State<WinsScreen> {
   bool _isLoading = true;
   String? _errorMessage;
 
+  static List<Map<String, dynamic>>? _cachedWins;
+
   @override
   void initState() {
     super.initState();
@@ -28,10 +30,18 @@ class _WinsScreenState extends State<WinsScreen> {
   }
 
   Future<void> _loadWonBids() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    if (_cachedWins != null && _cachedWins!.isNotEmpty) {
+      setState(() {
+        _wonBids = _cachedWins!;
+        _isLoading = false;
+        _errorMessage = null;
+      });
+    } else {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
       final response = await apiService.getBuyerBiddingHistory(
@@ -45,6 +55,7 @@ class _WinsScreenState extends State<WinsScreen> {
             .map((e) => e as Map<String, dynamic>)
             .toList();
 
+        _cachedWins = newBids;
         if (mounted) {
           setState(() {
             _wonBids = newBids;
@@ -54,7 +65,9 @@ class _WinsScreenState extends State<WinsScreen> {
       } else {
         if (mounted) {
           setState(() {
-            _errorMessage = response['message'] as String? ?? 'Failed to load';
+            if (_wonBids.isEmpty) {
+              _errorMessage = response['message'] as String? ?? 'Failed to load';
+            }
             _isLoading = false;
           });
         }
@@ -62,7 +75,9 @@ class _WinsScreenState extends State<WinsScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          if (_wonBids.isEmpty) {
+            _errorMessage = e.toString();
+          }
           _isLoading = false;
         });
       }

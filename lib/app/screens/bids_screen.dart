@@ -22,6 +22,8 @@ class _BidsScreenState extends State<BidsScreen> with SingleTickerProviderStateM
   bool _isLoading = true;
   String? _errorMessage;
 
+  static List<BidModel>? _cachedBids;
+
   // Real-time countdown timer to update time left live
   Timer? _tickerTimer;
 
@@ -56,13 +58,22 @@ class _BidsScreenState extends State<BidsScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _loadBids() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    if (_cachedBids != null && _cachedBids!.isNotEmpty) {
+      setState(() {
+        _bids = _cachedBids!;
+        _isLoading = false;
+        _errorMessage = null;
+      });
+    } else {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
       final result = await apiService.getMyBids();
+      _cachedBids = result;
       if (mounted) {
         setState(() {
           _bids = result;
@@ -72,7 +83,9 @@ class _BidsScreenState extends State<BidsScreen> with SingleTickerProviderStateM
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          if (_bids.isEmpty) {
+            _errorMessage = e.toString();
+          }
           _isLoading = false;
         });
       }

@@ -108,8 +108,8 @@ class ApiService {
     instance = this; // Store instance for static access
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 8),
+      receiveTimeout: const Duration(seconds: 12),
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',

@@ -26,6 +26,7 @@ import '../screens/seller_analytics_screen.dart';
 import '../screens/profile_setup_screen.dart';
 import '../screens/buyer_dashboard_screen.dart';
 import '../screens/live_sales_screen.dart';
+import '../screens/sellers_screen.dart';
 import '../models/product_model.dart';
 import '../services/storage_service.dart';
 import '../widgets/bottom_nav_bar.dart';
@@ -357,6 +358,14 @@ class AppRouter {
         ],
       ),
       // Fullscreen routes (no bottom nav)
+      GoRoute(
+        path: '/sellers',
+        name: 'sellers',
+        pageBuilder: (context, state) => _buildFadeSlidePage(
+          key: state.pageKey,
+          child: const SellersScreen(),
+        ),
+      ),
       GoRoute(
         path: '/product/:id',
         name: 'product',
