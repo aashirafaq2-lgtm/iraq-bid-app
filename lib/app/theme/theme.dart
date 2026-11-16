@@ -144,11 +144,11 @@ class AppTheme {
     );
   }
   
-  /// Dark theme configuration
+  /// Dark theme configuration (Aligned with crisp clean bright theme to prevent black boxes)
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
+      brightness: Brightness.light,
       fontFamily: AppTypography.fontFamily,
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
@@ -157,37 +157,37 @@ class AppTheme {
         },
       ),
       
-      // Color scheme - Blue + White Theme (Dark Mode)
-      colorScheme: ColorScheme.dark(
+      // Color scheme - Blue + Pure Light
+      colorScheme: ColorScheme.light(
         primary: AppColors.primaryBlue,
         secondary: AppColors.lightBlue,
-        background: AppColors.backgroundDark,
-        surface: AppColors.surfaceDark,
+        background: AppColors.backgroundLight,
+        surface: AppColors.cardWhite,
         error: AppColors.error,
         onPrimary: AppColors.cardWhite,
-        onSecondary: AppColors.textPrimaryDark,
-        onBackground: AppColors.textPrimaryDark,
-        onSurface: AppColors.textPrimaryDark,
+        onSecondary: AppColors.textNavy,
+        onBackground: AppColors.textNavy,
+        onSurface: AppColors.textNavy,
         onError: AppColors.cardWhite,
       ),
       
       // Scaffold background
-      scaffoldBackgroundColor: AppColors.backgroundDark,
+      scaffoldBackgroundColor: AppColors.backgroundLight,
       
       // App bar theme
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.surfaceDark,
-        foregroundColor: AppColors.textPrimaryDark,
+        backgroundColor: AppColors.cardWhite,
+        foregroundColor: AppColors.textNavy,
         elevation: 0,
         centerTitle: false,
         titleTextStyle: AppTypography.titleLarge.copyWith(
-          color: AppColors.textPrimaryDark,
+          color: AppColors.textNavy,
         ),
       ),
       
       // Card theme
       cardTheme: CardThemeData(
-        color: AppColors.surfaceDark,
+        color: AppColors.cardWhite,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16), // rounded-2xl
@@ -233,28 +233,28 @@ class AppTheme {
         ),
       ),
       
-      // Input decoration theme
+      // Input decoration theme - Clean White with crisp subtle border
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surfaceDark,
+        fillColor: AppColors.cardWhite,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24), // rounded-2xl
-          borderSide: BorderSide(color: AppColors.textSecondaryDark.withOpacity(0.3)),
+          borderRadius: BorderRadius.circular(24),
+          borderSide: BorderSide(color: AppColors.slate200.withOpacity(0.8)),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24), // rounded-2xl
-          borderSide: BorderSide(color: AppColors.textSecondaryDark.withOpacity(0.3)),
+          borderRadius: BorderRadius.circular(24),
+          borderSide: BorderSide(color: AppColors.slate200.withOpacity(0.8)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24), // rounded-2xl
+          borderRadius: BorderRadius.circular(24),
           borderSide: const BorderSide(color: AppColors.primaryBlue, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24), // rounded-2xl
+          borderRadius: BorderRadius.circular(24),
           borderSide: const BorderSide(color: AppColors.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(24), // rounded-2xl
+          borderRadius: BorderRadius.circular(24),
           borderSide: const BorderSide(color: AppColors.error, width: 2),
         ),
         labelStyle: AppTypography.bodyMedium.copyWith(

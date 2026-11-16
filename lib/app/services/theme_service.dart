@@ -9,8 +9,8 @@ class ThemeService {
   static ThemeMode getThemeMode() {
     var stored = _box.read(_key);
     if (stored == null) {
-      // Auto-detect system theme
-      return ThemeMode.system;
+      // Default to crisp pure light theme across the app
+      return ThemeMode.light;
     }
     return stored == 'dark' ? ThemeMode.dark : ThemeMode.light;
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../utils/app_animations.dart';
 
 /// Animated list view with staggered animations

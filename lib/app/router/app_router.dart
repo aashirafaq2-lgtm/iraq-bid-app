@@ -8,6 +8,7 @@ import '../screens/signup_screen.dart';
 import '../screens/buyer_dashboard_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/product_details_screen.dart';
+import '../screens/bids_screen.dart';
 import '../screens/seller_dashboard_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/product_creation_screen.dart';
@@ -22,12 +23,46 @@ import '../screens/wins_screen.dart';
 import '../screens/terms_and_conditions_screen.dart';
 import '../screens/privacy_policy_screen.dart';
 import '../screens/seller_analytics_screen.dart';
+import '../screens/profile_setup_screen.dart';
+import '../screens/buyer_dashboard_screen.dart';
+import '../screens/live_sales_screen.dart';
+import '../screens/sellers_screen.dart';
 import '../models/product_model.dart';
 import '../services/storage_service.dart';
 import '../widgets/bottom_nav_bar.dart';
 
 /// Application router configuration
 class AppRouter {
+  /// Helper to create smooth fade+slide transitions across tabs
+  static Page<dynamic> _buildFadeSlidePage({
+    required LocalKey key,
+    required Widget child,
+  }) {
+    return CustomTransitionPage(
+      key: key,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 280),
+      reverseTransitionDuration: const Duration(milliseconds: 240),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final curvedAnimation = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return FadeTransition(
+          opacity: curvedAnimation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.0, 0.04),
+              end: Offset.zero,
+            ).animate(curvedAnimation),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
   static final GoRouter router = GoRouter(
     initialLocation: '/splash',
     redirect: (context, state) async {
@@ -181,46 +216,106 @@ class AppRouter {
       // ShellRoute for persistent bottom navigation
       ShellRoute(
         builder: (context, state, child) {
-          return Scaffold(
-            body: child,
-            bottomNavigationBar: const BottomNavBar(),
+          DateTime? lastBackPressTime;
+
+          return PopScope(
+            canPop: false,
+            onPopInvokedWithResult: (didPop, result) {
+              if (didPop) return;
+
+              final currentPath = GoRouterState.of(context).uri.path;
+              // If not on home, back press takes user to home screen first
+              if (currentPath != '/home') {
+                context.go('/home');
+                return;
+              }
+
+              // If already on home, require double tap to exit to prevent accidental app quit
+              final now = DateTime.now();
+              if (lastBackPressTime == null || now.difference(lastBackPressTime!) > const Duration(seconds: 2)) {
+                lastBackPressTime = now;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Press back again to exit / اضغط رجوع مرة أخرى للخروج'),
+                    duration: Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              } else {
+                // Exit app gracefully
+                Navigator.of(context).pop();
+              }
+            },
+            child: Scaffold(
+              body: child,
+              bottomNavigationBar: const BottomNavBar(),
+            ),
           );
         },
         routes: [
           GoRoute(
             path: '/home',
             name: 'home',
-            builder: (context, state) => HomeScreen(),
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: HomeScreen(),
+            ),
           ),
           GoRoute(
             path: '/seller-dashboard',
             name: 'seller-dashboard',
-            builder: (context, state) => const SellerDashboardScreen(),
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const SellerDashboardScreen(),
+            ),
           ),
           GoRoute(
             path: '/notifications',
             name: 'notifications',
-            builder: (context, state) => const NotificationsScreen(),
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const NotificationsScreen(),
+            ),
           ),
           GoRoute(
             path: '/invite-and-earn',
             name: 'invite-and-earn',
-            builder: (context, state) => const InviteAndEarnScreen(),
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const InviteAndEarnScreen(),
+            ),
           ),
           GoRoute(
             path: '/wallet',
             name: 'wallet',
-            builder: (context, state) => const WalletScreen(),
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const WalletScreen(),
+            ),
           ),
           GoRoute(
             path: '/profile',
             name: 'profile',
-            builder: (context, state) => const ProfileScreen(),
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const ProfileScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/bids',
+            name: 'bids',
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const BidsScreen(),
+            ),
           ),
           GoRoute(
             path: '/buyer/bidding-history',
             name: 'buyer-bidding-history',
-            builder: (context, state) => const BuyerBiddingHistoryScreen(),
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const BuyerBiddingHistoryScreen(),
+            ),
           ),
           // Alias route for /buyer-bidding-history (hyphen format)
           GoRoute(
@@ -231,26 +326,65 @@ class AppRouter {
           GoRoute(
             path: '/seller/earnings',
             name: 'seller-earnings',
-            builder: (context, state) => const SellerEarningsScreen(),
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const SellerEarningsScreen(),
+            ),
           ),
           GoRoute(
             path: '/wishlist',
             name: 'wishlist',
-            builder: (context, state) => const WishlistScreen(),
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const WishlistScreen(),
+            ),
           ),
           GoRoute(
             path: '/wins',
             name: 'wins',
-            builder: (context, state) => const WinsScreen(),
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const WinsScreen(),
+            ),
           ),
           GoRoute(
             path: '/seller/analytics',
             name: 'seller-analytics',
-            builder: (context, state) => const SellerAnalyticsScreen(),
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const SellerAnalyticsScreen(),
+            ),
           ),
         ],
       ),
       // Fullscreen routes (no bottom nav)
+      GoRoute(
+        path: '/sellers',
+        name: 'sellers',
+        pageBuilder: (context, state) => _buildFadeSlidePage(
+          key: state.pageKey,
+          child: const SellersScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/product/:id',
+        name: 'product',
+        pageBuilder: (context, state) {
+          final id = state.pathParameters['id'] ?? '1';
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: ProductDetailsScreen(productId: id),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              const begin = Offset(1.0, 0.0);
+              const end = Offset.zero;
+              const curve = Curves.easeOutQuart;
+              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              var offsetAnimation = animation.drive(tween);
+              return SlideTransition(position: offsetAnimation, child: child);
+            },
+          );
+        },
+      ),
       GoRoute(
         path: '/product-details/:id',
         name: 'product-details',
@@ -285,6 +419,27 @@ class AppRouter {
           final productId = state.pathParameters['productId'] ?? '1';
           return SellerWinnerDetailsScreen(productId: productId);
         },
+      ),
+      GoRoute(
+        path: '/profile-setup',
+        name: 'profile-setup',
+        builder: (context, state) {
+          final role = state.uri.queryParameters['role'] ?? 'company_products';
+          return ProfileSetupScreen(userRole: role);
+        },
+      ),
+      GoRoute(
+        path: '/buyer-dashboard',
+        name: 'buyer-dashboard',
+        builder: (context, state) => const BuyerDashboardScreen(),
+      ),
+      GoRoute(
+        path: '/live-sales',
+        name: 'live-sales',
+        pageBuilder: (context, state) => _buildFadeSlidePage(
+          key: state.pageKey,
+          child: const LiveSalesScreen(),
+        ),
       ),
       GoRoute(
         path: '/terms-and-conditions',

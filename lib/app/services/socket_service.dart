@@ -14,15 +14,18 @@ class SocketService extends ChangeNotifier {
 
   void init() async {
     final token = await StorageService.getAccessToken();
-    if (token == null) return;
-
+    // Allow anonymous socket connection for real-time bid broadcasts even if not logged in
     final baseUrl = ApiService.baseUrl.replaceFirst('/api/', '').replaceFirst('/api', '');
     
-    socket = IO.io(baseUrl, IO.OptionBuilder()
-      .setTransports(['websocket'])
-      .setAuth({'token': token})
-      .enableAutoConnect()
-      .build());
+    final optionsBuilder = IO.OptionBuilder()
+      .setTransports(['websocket', 'polling'])
+      .enableAutoConnect();
+
+    if (token != null) {
+      optionsBuilder.setAuth({'token': token});
+    }
+    
+    socket = IO.io(baseUrl, optionsBuilder.build());
 
     socket?.onConnect((_) {
       _isConnected = true;
@@ -48,11 +51,13 @@ class SocketService extends ChangeNotifier {
   }
 
   void joinProductRoom(String productId) {
+    socket?.emit('join_room', productId);
     socket?.emit('join_product', productId);
     if (kDebugMode) print('🚪 Joined Room: Product $productId');
   }
 
   void leaveProductRoom(String productId) {
+    socket?.emit('leave_room', productId);
     socket?.emit('leave_product', productId);
     if (kDebugMode) print('🚶 Left Room: Product $productId');
   }

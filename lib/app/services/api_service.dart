@@ -41,26 +41,26 @@ class ApiService {
     // Release mode = Production (api.mazaadati.com)
     
     if (kDebugMode) {
-      // DEBUG MODE: Try local backend first, auto-fallback to production if closed
-      const String localUrl = 'http://localhost:5000/api/';
-      const String productionUrl = 'https://api.mazaadati.com/api/';
+      // DEBUG MODE: Try production admin backend directly or local
+      const String localUrl = 'https://admin.iraqbid.net/api/';
+      const String productionUrl = 'https://admin.iraqbid.net/api/';
       
       // Try local first - if connection fails, auto-fallback will switch to production
       print('🌐 [Debug Mode] Attempting LOCAL API first: $localUrl');
       print('   💡 If local backend is closed, will auto-switch to PRODUCTION: $productionUrl');
       print('   💡 Both local and production URLs are available');
-      return localUrl;
+      return productionUrl;
     } else {
       // RELEASE MODE: Use production backend
-      const String productionUrl = 'https://api.mazaadati.com/api/';
+      const String productionUrl = 'https://admin.iraqbid.net/api/';
       print('🌐 [Release] Using PRODUCTION API: $productionUrl');
       return productionUrl;
     }
   }
   
   // Production URL constant for fallback
-  static const String productionUrl = 'https://api.mazaadati.com/api/';
-  static const String localUrl = 'http://localhost:5000/api/';
+  static const String productionUrl = 'https://admin.iraqbid.net/api/';
+  static const String localUrl = 'https://admin.iraqbid.net/api/';
   
   /// Get the current base URL (may have switched from local to production)
   /// Use this instead of baseUrl getter when you need the actual current URL
@@ -108,8 +108,8 @@ class ApiService {
     instance = this; // Store instance for static access
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 8),
+      receiveTimeout: const Duration(seconds: 12),
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -1533,6 +1533,37 @@ class ApiService {
     }
   }
 
+  /// POST /api/products/:id/buy-now
+  /// Direct Instant Purchase
+  Future<Map<String, dynamic>> buyNow({
+    required int productId,
+    String? shippingAddress,
+    String? phone,
+    String? notes,
+  }) async {
+    try {
+      print('🚀 [buyNow] Initiating instant purchase for product #$productId');
+      final response = await _dio.post(
+        'products/$productId/buy-now',
+        data: {
+          'shipping_address': shippingAddress,
+          'phone': phone,
+          'notes': notes,
+        },
+      );
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      print('❌ [buyNow] Error: $e');
+      if (e is DioException && e.response?.data != null) {
+        final err = e.response!.data;
+        if (err is Map && err['message'] != null) {
+          throw Exception(err['message']);
+        }
+      }
+      throw Exception('Failed to complete purchase. Please check your connection.');
+    }
+  }
+
   /// GET /api/bids/:productId
   /// ✅ LIVE: Connects to backend database
   Future<List<BidModel>> getBidsByProduct(int productId) async {
@@ -1806,6 +1837,22 @@ class ApiService {
     }
   }
 
+
+  // ==================== ORDER METHODS ====================
+
+  /// POST /api/orders/:id/confirm-receipt
+  /// Customer physical receipt confirmation (Requirement #8)
+  Future<bool> confirmOrderReceipt(int orderId) async {
+    try {
+      final response = await _dio.post('orders/$orderId/confirm-receipt');
+      return response.statusCode == 200 && (response.data['success'] == true);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error confirming order receipt: $e');
+      }
+      return false;
+    }
+  }
 
   // ==================== WISHLIST METHODS ====================
 

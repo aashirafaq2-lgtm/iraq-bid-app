@@ -1,14 +1,16 @@
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'storage_service.dart';
+import '../router/app_router.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  // OneSignal App ID - You need to replace this with your actual ID from dashboard
-  static const String _appId = "YOUR_ONESIGNAL_APP_ID"; 
+  // TODO: Replace with your actual OneSignal App ID from https://app.onesignal.com
+  // Steps: OneSignal Dashboard → Your App → Settings → Keys & IDs → OneSignal App ID
+  static const String _appId = "YOUR_ONESIGNAL_APP_ID";
 
   Future<void> init() async {
     // Debugging
@@ -36,10 +38,18 @@ class NotificationService {
       if (kDebugMode) {
         print('🖱️ OneSignal Notification Clicked: ${event.notification.title}');
       }
-      // Navigate to specific screen based on additionalData
+      // Navigate to product details screen if productId is available
       final data = event.notification.additionalData;
       if (data != null && data.containsKey('productId')) {
-        // Use go_router to navigate if needed (requires a static navigator key or context)
+        final productId = data['productId'].toString();
+        // Use GoRouter to navigate to product details
+        try {
+          AppRouter.router.push('/product-details/$productId');
+        } catch (e) {
+          if (kDebugMode) {
+            print('❌ Navigation error on notification click: $e');
+          }
+        }
       }
     });
 

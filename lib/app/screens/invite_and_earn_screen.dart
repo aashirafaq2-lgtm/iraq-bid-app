@@ -4,8 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
-import '../theme/colors.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
+import '../services/language_service.dart';
 
 class InviteAndEarnScreen extends StatefulWidget {
   const InviteAndEarnScreen({super.key});
@@ -14,32 +13,39 @@ class InviteAndEarnScreen extends StatefulWidget {
   State<InviteAndEarnScreen> createState() => _InviteAndEarnScreenState();
 }
 
-class _InviteAndEarnScreenState extends State<InviteAndEarnScreen> {
+class _InviteAndEarnScreenState extends State<InviteAndEarnScreen> with SingleTickerProviderStateMixin {
   String? _referralCode;
   double _rewardBalance = 0.0;
   List<Map<String, dynamic>> _referralHistory = [];
   bool _isLoading = true;
-  bool _isLoadingHistory = false;
-  String? _error;
-  int _currentPage = 1;
-  bool _hasMore = true;
+
+  late AnimationController _animController;
+  late Animation<double> _fadeAnim;
 
   @override
   void initState() {
     super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
     _loadReferralData();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadReferralData() async {
     setState(() {
       _isLoading = true;
-      _error = null;
     });
 
     try {
-      // Load referral code and balance
       final response = await apiService.getReferralCode();
-      
       if (response['success'] == true && response['data'] != null) {
         final data = response['data'];
         setState(() {
@@ -48,467 +54,454 @@ class _InviteAndEarnScreenState extends State<InviteAndEarnScreen> {
               ? (data['reward_balance'] as num).toDouble()
               : double.tryParse(data['reward_balance'].toString()) ?? 0.0;
         });
-        
-        // Save to storage
+
         if (_referralCode != null) {
           await StorageService.saveReferralCode(_referralCode!);
         }
         await StorageService.saveRewardBalance(_rewardBalance);
-      } else {
-        setState(() {
-          _error = response['message'] ?? 'Failed to load referral data';
-        });
       }
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error loading referral code: $e');
-      }
-      setState(() {
-        _error = 'Failed to load referral information';
-      });
+    } catch (_) {
+      // Ignore
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
+      _animController.forward();
     }
 
-    // Load referral history
-    await _loadReferralHistory();
-  }
-
-  Future<void> _loadReferralHistory({bool loadMore = false}) async {
-    if (_isLoadingHistory && !loadMore) return;
-
-    setState(() {
-      _isLoadingHistory = true;
-    });
-
     try {
-      final page = loadMore ? _currentPage + 1 : 1;
-      final response = await apiService.getReferralHistory(page: page, limit: 20);
-
-      if (response['success'] == true) {
-        final data = response['data'] as List<dynamic>? ?? [];
-        final pagination = response['pagination'];
-
-        setState(() {
-          if (loadMore) {
-            _referralHistory.addAll(data.map((e) => e as Map<String, dynamic>));
-            _currentPage = page;
-          } else {
+      final historyRes = await apiService.getReferralHistory(page: 1, limit: 20);
+      if (historyRes['success'] == true && historyRes['data'] != null) {
+        final data = historyRes['data'] as List<dynamic>? ?? [];
+        if (mounted) {
+          setState(() {
             _referralHistory = data.map((e) => e as Map<String, dynamic>).toList();
-            _currentPage = 1;
-          }
-          _hasMore = pagination != null && page < (pagination['pages'] ?? 1);
-        });
+          });
+        }
       }
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error loading referral history: $e');
-      }
-    } finally {
-      setState(() {
-        _isLoadingHistory = false;
-      });
-    }
+    } catch (_) {}
   }
 
-  Future<void> _copyReferralCode() async {
+  void _copyToClipboard(String text, bool isAr) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(isAr ? 'تم نسخ رمز الإحالة بنجاح' : 'Referral code copied to clipboard'),
+        backgroundColor: const Color(0xFF10B981),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _shareReferralCode(bool isAr) {
     if (_referralCode == null) return;
-
-    await Clipboard.setData(ClipboardData(text: _referralCode!));
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Referral code copied to clipboard!'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  Future<void> _shareReferralLink() async {
-    if (_referralCode == null) return;
-
-    // Generate referral link
-    const baseUrl = 'https://yourapp.com/signup'; // Update with your actual app URL
-    final referralLink = '$baseUrl?ref=$_referralCode';
-
-    final shareText = '''
-🎉 Invite your friends to BidMaster and earn rewards!
-
-Use my referral code: $_referralCode
-
-Sign up here: $referralLink
-
-Start earning today! 💰
-''';
-
-    try {
-      await Share.share(shareText, subject: 'Join BidMaster with my referral code!');
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error sharing: $e');
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to share referral link'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    }
-  }
-
-  String _formatDate(String dateString) {
-    try {
-      final date = DateTime.parse(dateString);
-      return '${date.day}/${date.month}/${date.year}';
-    } catch (e) {
-      return dateString;
-    }
-  }
-
-  String _getStatusText(String status) {
-    switch (status.toLowerCase()) {
-      case 'awarded':
-        return 'Awarded';
-      case 'pending':
-        return 'Pending';
-      case 'revoked':
-        return 'Revoked';
-      default:
-        return status;
-    }
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'awarded':
-        return AppColors.success;
-      case 'pending':
-        return AppColors.warning;
-      case 'revoked':
-        return AppColors.error;
-      default:
-        return AppColors.slate400;
-    }
+    final text = isAr
+        ? 'انضم إلي في تطبيق مزاد العراق واحصل على مكافأة حصرية عند التسجيل! استخدم كود الإحالة الخاص بي: $_referralCode\nhttps://iraqbid.net'
+        : 'Join me on Iraq Bid app and claim exclusive bidding bonuses! Use my referral code: $_referralCode\nhttps://iraqbid.net';
+    Share.share(text);
   }
 
   @override
   Widget build(BuildContext context) {
+    final isAr = LanguageService.isArabic;
+    final iqdReward = (_rewardBalance * 1520).toStringAsFixed(0);
+
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Invite & Earn'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            // Check if we can pop, otherwise navigate to home
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/home');
-            }
-          },
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: Color(0xFF0F172A)),
+          onPressed: () => context.pop(),
         ),
+        title: Text(
+          isAr ? 'ادعُ واربح مكافآت' : 'Invite & Earn Rewards',
+          style: const TextStyle(
+            color: Color(0xFF0F172A),
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+          ),
+        ),
+        centerTitle: true,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
+      body: SafeArea(
+        child: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0284C7)),
+                ),
+              )
+            : FadeTransition(
+                opacity: _fadeAnim,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: AppColors.error,
+                      // Luxury Gold / Sky Gradient Earnings Card
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      isAr ? 'رصيد المكافآت المكتسبة' : 'Total Referral Earnings',
+                                      style: const TextStyle(
+                                        color: Color(0xFF94A3B8),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      '\$${_rewardBalance.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '≈ $iqdReward IQD',
+                                      style: const TextStyle(
+                                        color: Color(0xFF38BDF8),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.card_giftcard_rounded,
+                                    size: 32,
+                                    color: Color(0xFF38BDF8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                            const Divider(color: Color(0xFF334155), height: 1),
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  isAr ? 'عدد الأصدقاء المدعوين' : 'Total Friends Invited',
+                                  style: const TextStyle(
+                                    color: Color(0xFF94A3B8),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  '${_referralHistory.length} ${isAr ? "مستخدم" : "users"}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 16),
+
+                      const SizedBox(height: 24),
+
+                      // Referral Code Box
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(
+                              isAr ? 'رمز الإحالة الخاص بك' : 'YOUR UNIQUE REFERRAL CODE',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF64748B),
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: const Color(0xFF0284C7), width: 1.5),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    _referralCode ?? '---',
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFF0284C7),
+                                      letterSpacing: 3,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.copy_rounded, color: Color(0xFF0284C7), size: 22),
+                                    onPressed: () {
+                                      if (_referralCode != null) {
+                                        _copyToClipboard(_referralCode!, isAr);
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: ElevatedButton.icon(
+                                onPressed: () => _shareReferralCode(isAr),
+                                icon: const Icon(Icons.share_rounded, size: 18),
+                                label: Text(
+                                  isAr ? 'مشاركة الكود مع الأصدقاء' : 'Share Referral Code',
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0284C7),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 28),
+
+                      // How It Works Steps
                       Text(
-                        _error!,
-                        style: Theme.of(context).textTheme.bodyLarge,
-                        textAlign: TextAlign.center,
+                        isAr ? 'كيف يعمل برنامج الإحالة؟' : 'How It Works',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadReferralData,
-                        child: const Text('Retry'),
+                      const SizedBox(height: 14),
+
+                      _buildStepTile(
+                        number: '1',
+                        title: isAr ? 'شارك كود الدعوة' : 'Share your invite link',
+                        desc: isAr
+                            ? 'أرسل كود الإحالة لأصدقائك عبر واتساب أو وسائل التواصل'
+                            : 'Send your link or code to friends and family across Iraq',
                       ),
+                      const SizedBox(height: 10),
+                      _buildStepTile(
+                        number: '2',
+                        title: isAr ? 'يسجل صديقك ويدخل المزاد' : 'Friend registers & bids',
+                        desc: isAr
+                            ? 'بمجرد تسجيل الصديق وإجراء أول مزايدة مؤكدة'
+                            : 'When they complete phone OTP signup and participate in an auction',
+                      ),
+                      const SizedBox(height: 10),
+                      _buildStepTile(
+                        number: '3',
+                        title: isAr ? 'تحصلان على رصيد فوري' : 'Both earn instant cash',
+                        desc: isAr
+                            ? 'يتم تحويل المكافأة مباشرة لمحفظتك ويمكن استخدامها في المزايدة'
+                            : 'Bonus credits land directly into your app wallet for free bids',
+                      ),
+
+                      const SizedBox(height: 28),
+
+                      // Referral History Section
+                      Text(
+                        isAr ? 'سجل الإحالات الأخيرة' : 'Recent Referrals',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      if (_referralHistory.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Center(
+                            child: Text(
+                              isAr
+                                  ? 'لم تقم بدعوة أي مستخدم بعد. ابدأ الآن واكسب الرصيد!'
+                                  : 'No referrals recorded yet. Share your code to get started!',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                            ),
+                          ),
+                        )
+                      else
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _referralHistory.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final item = _referralHistory[index];
+                            final name = item['referred_user_name'] ?? item['phone'] ?? 'User';
+                            final date = item['created_at']?.toString() ?? '';
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.check_circle_outline, color: Color(0xFF10B981), size: 20),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          name,
+                                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                                        ),
+                                        if (date.isNotEmpty)
+                                          Text(
+                                            date.split('T').first,
+                                            style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Text(
+                                      '+ \$5.00',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF10B981),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+
+                      const SizedBox(height: 24),
                     ],
                   ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadReferralData,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Referral Code Card
-                        Card(
-                          elevation: 2,
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              children: [
-                                Text(
-                                  'Your Referral Code',
-                                  style: Theme.of(context).textTheme.titleMedium,
-                                ),
-                                const SizedBox(height: 16),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                    vertical: 16,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.primaryContainer,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: Theme.of(context).colorScheme.primary,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    _referralCode ?? 'Loading...',
-                                    style: TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 4,
-                                      color: Theme.of(context).colorScheme.primary,
-                                      fontFamily: 'monospace',
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: OutlinedButton.icon(
-                                        onPressed: _copyReferralCode,
-                                        icon: const Icon(Icons.copy),
-                                        label: const Text('Copy'),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: ElevatedButton.icon(
-                                        onPressed: _shareReferralLink,
-                                        icon: const Icon(Icons.share),
-                                        label: const Text('Share'),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Theme.of(context).colorScheme.primary,
-                                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                ),
+              ),
+      ),
+    );
+  }
 
-                        const SizedBox(height: 16),
-
-                        // Reward Balance Card
-                        Card(
-                          elevation: 2,
-                          color: AppColors.blue50,
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.account_balance_wallet,
-                                      size: 32,
-                                      color: AppColors.primaryBlue,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      'Reward Balance',
-                                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  '\$${_rewardBalance.toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                    fontSize: 36,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.primaryBlue,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Earn \$1 when someone signs up with your code!\nThey get \$2 as a welcome bonus.',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // Referral History
-                        Text(
-                          'Referral History',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        _isLoadingHistory && _referralHistory.isEmpty
-                            ? const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(32.0),
-                                  child: CircularProgressIndicator(),
-                                ),
-                              )
-                            : _referralHistory.isEmpty
-                                ? Card(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(32.0),
-                                      child: Column(
-                                        children: [
-                                          Icon(
-                                            Icons.people_outline,
-                                            size: 64,
-                                            color: AppColors.slate400,
-                                          ),
-                                          const SizedBox(height: 16),
-                                          Text(
-                                            'No referrals yet',
-                                            style: Theme.of(context).textTheme.titleMedium,
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Share your referral code to start earning!',
-                                            style: Theme.of(context).textTheme.bodyMedium,
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  )
-                                : RepaintBoundary(
-                                    child: ListView.separated(
-                                      shrinkWrap: true,
-                                      physics: const NeverScrollableScrollPhysics(),
-                                      itemCount: _referralHistory.length + (_hasMore ? 1 : 0) + (_isLoadingHistory ? 1 : 0),
-                                      separatorBuilder: (context, index) => const SizedBox(height: 8),
-                                      itemBuilder: (context, index) {
-                                        if (index == _referralHistory.length) {
-                                          if (_isLoadingHistory) {
-                                            return const Padding(
-                                              padding: EdgeInsets.all(16.0),
-                                              child: Center(child: CircularProgressIndicator()),
-                                            );
-                                          }
-                                          if (_hasMore) {
-                                            return Padding(
-                                              padding: const EdgeInsets.all(16.0),
-                                              child: ElevatedButton(
-                                                onPressed: () => _loadReferralHistory(loadMore: true),
-                                                child: const Text('Load More'),
-                                              ),
-                                            );
-                                          }
-                                          return const SizedBox.shrink();
-                                        }
-                                        
-                                        final referral = _referralHistory[index];
-                                        return RepaintBoundary(
-                                          child: Card(
-                                            margin: EdgeInsets.zero,
-                                            child: ListTile(
-                                              leading: CircleAvatar(
-                                                backgroundColor: _getStatusColor(
-                                                  referral['status'] ?? 'pending',
-                                                ).withOpacity(0.2),
-                                                child: Icon(
-                                                  Icons.person,
-                                                  color: _getStatusColor(
-                                                    referral['status'] ?? 'pending',
-                                                  ),
-                                                ),
-                                              ),
-                                              title: Text(
-                                                referral['invitee_phone'] ?? 'Unknown',
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                              subtitle: Text(
-                                                _formatDate(
-                                                  referral['created_at'] ?? '',
-                                                ),
-                                              ),
-                                              trailing: Column(
-                                                mainAxisAlignment: MainAxisAlignment.center,
-                                                crossAxisAlignment: CrossAxisAlignment.end,
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Text(
-                                                    '\$${(referral['amount'] ?? 0.0).toStringAsFixed(2)}',
-                                                    style: const TextStyle(
-                                                      fontWeight: FontWeight.bold,
-                                                      color: AppColors.primaryBlue,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Container(
-                                                    padding: const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 2,
-                                                    ),
-                                                    decoration: BoxDecoration(
-                                                      color: _getStatusColor(
-                                                        referral['status'] ?? 'pending',
-                                                      ).withOpacity(0.2),
-                                                      borderRadius: BorderRadius.circular(12),
-                                                    ),
-                                                    child: Text(
-                                                      _getStatusText(
-                                                        referral['status'] ?? 'pending',
-                                                      ),
-                                                      style: TextStyle(
-                                                        fontSize: 10,
-                                                        color: _getStatusColor(
-                                                          referral['status'] ?? 'pending',
-                                                        ),
-                                                        fontWeight: FontWeight.w600,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                      ],
-                    ),
+  Widget _buildStepTile({required String number, required String title, required String desc}) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: const Color(0xFF0284C7).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(
+              child: Text(
+                number,
+                style: const TextStyle(
+                  color: Color(0xFF0284C7),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
                   ),
                 ),
+                const SizedBox(height: 2),
+                Text(
+                  desc,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF64748B),
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
-
-
-

@@ -15,6 +15,7 @@ import 'app/services/language_service.dart';
 import 'app/services/app_localizations.dart';
 import 'app/services/socket_service.dart';
 import 'app/services/notification_service.dart';
+import 'app/services/local_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,8 +54,9 @@ void main() async {
     _initDeepLinks();
 
     // Initialize New Services
-    socketService.init();
-    notificationService.init();
+    SocketService().init();
+    NotificationService().init();
+    await LocalNotificationService().init();
     
     runApp(const MyApp());
   } catch (e, stackTrace) {

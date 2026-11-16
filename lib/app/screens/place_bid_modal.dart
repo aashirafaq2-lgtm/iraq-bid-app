@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lottie/lottie.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import '../theme/colors.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../services/language_service.dart';
 
 class PlaceBidModal extends StatefulWidget {
   final int currentBid;
@@ -24,508 +22,562 @@ class PlaceBidModal extends StatefulWidget {
 }
 
 class _PlaceBidModalState extends State<PlaceBidModal>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final TextEditingController _bidController = TextEditingController();
   bool _isSubmitting = false;
   bool _isSuccess = false;
-  late AnimationController _animationController;
+  late int _selectedBid;
+
+  late AnimationController _modalController;
   late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  late AnimationController _successController;
+  late Animation<double> _successScale;
+
+  static const int usdToIqdRate = 1520;
 
   int get _minBid => widget.currentBid + 1;
-
-  List<int> get _suggestedBids => [
-        widget.currentBid + 1,
-        widget.currentBid + 5,
-        widget.currentBid + 10,
-        widget.currentBid + 25,
-      ];
+  List<int> get _quickIncrements => [5, 10, 25, 50, 100];
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
+    _selectedBid = _minBid;
+    _bidController.text = '$_selectedBid';
+
+    _modalController = AnimationController(
       vsync: this,
+      duration: const Duration(milliseconds: 400),
     );
-    _scaleAnimation = Tween<double>(begin: 0.9, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    _scaleAnimation = Tween<double>(begin: 0.92, end: 1.0).animate(
+      CurvedAnimation(parent: _modalController, curve: Curves.easeOutBack),
     );
-    _animationController.forward();
+    _fadeAnimation = CurvedAnimation(parent: _modalController, curve: Curves.easeOut);
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    _successController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _successScale = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _successController, curve: Curves.elasticOut),
+    );
+
+    _modalController.forward();
   }
 
   @override
   void dispose() {
     _bidController.dispose();
-    _animationController.dispose();
+    _modalController.dispose();
+    _pulseController.dispose();
+    _successController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleSubmit() async {
-    final amount = double.tryParse(_bidController.text);
+  void _onQuickIncrement(int inc) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _selectedBid = widget.currentBid + inc;
+      _bidController.text = '$_selectedBid';
+    });
+  }
+
+  void _adjustBid(int delta) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      final newVal = _selectedBid + delta;
+      if (newVal >= _minBid) {
+        _selectedBid = newVal;
+        _bidController.text = '$_selectedBid';
+      }
+    });
+  }
+
+  Future<void> _handleSubmit(bool isArabic) async {
+    final amount = int.tryParse(_bidController.text);
     if (amount == null || amount < _minBid) {
       HapticFeedback.vibrate();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isArabic
+                ? 'يجب أن تكون المزايدة أعلى من \$${widget.currentBid}'
+                : 'Bid must be greater than \$${widget.currentBid}',
+          ),
+          backgroundColor: const Color(0xFFEF4444),
+        ),
+      );
       return;
     }
 
-    // Trigger feedback on submission
-    HapticFeedback.mediumImpact();
-
-    // Check if user is logged in before placing bid
     final isLoggedIn = await StorageService.isLoggedIn();
-    final accessToken = await StorageService.getAccessToken();
-    
-    if (!isLoggedIn || accessToken == null) {
+    if (!isLoggedIn) {
+      HapticFeedback.mediumImpact();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please login first'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
-        );
         Navigator.of(context).pop();
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) {
-            context.go('/auth');
-          }
-        });
+        context.push('/auth');
       }
       return;
     }
 
-    setState(() {
-      _isSubmitting = true;
-    });
+    HapticFeedback.heavyImpact();
+    setState(() => _isSubmitting = true);
 
     try {
       await apiService.placeBid(
         productId: widget.productId,
-        amount: amount,
+        amount: amount.toDouble(),
       );
-
-      // Trigger success feedback
-      HapticFeedback.heavyImpact();
-
-      setState(() {
-        _isSubmitting = false;
-        _isSuccess = true;
-      });
-
-      await Future.delayed(const Duration(milliseconds: 2500));
-
       if (mounted) {
-        Navigator.of(context).pop(true); // Return true to indicate success
+        setState(() {
+          _isSubmitting = false;
+          _isSuccess = true;
+        });
+        _successController.forward();
+        HapticFeedback.heavyImpact();
+        Future.delayed(const Duration(milliseconds: 1400), () {
+          if (mounted) {
+            Navigator.of(context).pop(true);
+          }
+        });
       }
     } catch (e) {
-      setState(() {
-        _isSubmitting = false;
-      });
-
       if (mounted) {
-        // Extract user-friendly error message
-        String errorMessage = 'Failed to place bid. Please try again.';
-        
-        final errorString = e.toString().toLowerCase();
-        
-        // ... (rest of error handling remains same)
-        // [TRUNCATED FOR CONTEXT]
-        
+        setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 4),
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: const Color(0xFFEF4444),
           ),
         );
       }
     }
   }
 
-  bool get _isValidBid {
-    final amount = double.tryParse(_bidController.text);
-    return amount != null && amount >= _minBid;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final screenHeight = MediaQuery.of(context).size.height;
+    return ValueListenableBuilder<Locale>(
+      valueListenable: LanguageService.languageNotifier,
+      builder: (context, locale, _) {
+        final isArabic = LanguageService.isArabic;
 
-    return AnimatedBuilder(
-      animation: _scaleAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _scaleAnimation.value,
-          child: Container(
-            height: screenHeight * 0.9,
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(32),
+        return Directionality(
+          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: ScaleTransition(
+              scale: _scaleAnimation,
+              child: Container(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                  top: 16,
+                  left: 20,
+                  right: 20,
+                ),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(32),
+                    topRight: Radius.circular(32),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 36,
+                      offset: Offset(0, -10),
+                    ),
+                  ],
+                ),
+                child: _isSuccess
+                    ? _buildSuccessView(isArabic)
+                    : _buildBidView(isArabic),
               ),
             ),
-            child: _isSuccess
-                ? _buildSuccessView()
-                : _buildFormView(isDark),
           ),
         );
       },
     );
   }
 
-  Widget _buildSuccessView() {
-    return Center(
+  Widget _buildSuccessView(bool isArabic) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 32),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Lottie.network(
-            'https://assets10.lottiefiles.com/packages/lf20_afwjh8re.json', // Celebration Lottie
-            width: 200,
-            height: 200,
-            repeat: false,
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Bid Placed!',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
+          ScaleTransition(
+            scale: _successScale,
+            child: Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF10B981), Color(0xFF059669)],
                 ),
-          ).animate().fadeIn().scale(),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.4),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.check_rounded,
+                color: Colors.white,
+                size: 50,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            isArabic ? 'تم تأكيد مزايدتك بنجاح!' : 'Bid Placed Successfully!',
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF0F172A),
+              letterSpacing: -0.3,
+            ),
+          ),
           const SizedBox(height: 8),
           Text(
-            'Your bid of \$${_formatCurrency(int.parse(_bidController.text))} has been successfully placed',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? AppColors.textSecondaryDark
-                      : AppColors.textSecondaryLight,
-                ),
-            textAlign: TextAlign.center,
-          ).animate().fadeIn(delay: 200.ms),
+            isArabic
+                ? 'أنت الآن أعلى مزايد بمبلغ \$$_selectedBid'
+                : 'You are now the highest bidder at \$$_selectedBid',
+            style: const TextStyle(
+              fontSize: 15,
+              color: Color(0xFF64748B),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildFormView(bool isDark) {
+  Widget _buildBidView(bool isArabic) {
+    final iqdAmount = _selectedBid * usdToIqdRate;
+    final formattedIqd = iqdAmount.toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
+
     return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Header
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: isDark ? AppColors.slate800 : AppColors.slate200,
-              ),
+        // Handle Pill
+        Center(
+          child: Container(
+            width: 44,
+            height: 4.5,
+            decoration: BoxDecoration(
+              color: const Color(0xFFCBD5E1),
+              borderRadius: BorderRadius.circular(10),
             ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Place Your Bid',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+        ),
+        const SizedBox(height: 18),
+
+        // Header with live pulsing dot
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    ScaleTransition(
+                      scale: _pulseAnimation,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF10B981),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
                     ),
-              ),
-              IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.close),
-                style: IconButton.styleFrom(
-                  backgroundColor:
-                      isDark ? AppColors.slate800 : AppColors.slate100,
-                  shape: const CircleBorder(),
+                    const SizedBox(width: 8),
+                    Text(
+                      isArabic ? 'تقديم مزايدة حية' : 'Live Bid Stepper',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 4),
+                SizedBox(
+                  width: 250,
+                  child: Text(
+                    widget.productTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    isArabic ? 'الحالي' : 'Current',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                  Text(
+                    '\$${widget.currentBid}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 20),
+
+        // Stepper Interactive Box
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFF8FAFC), Color(0xFFF1F5F9)],
+            ),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Minus Button
+                  _StepButton(
+                    icon: Icons.remove_rounded,
+                    onTap: () => _adjustBid(-1),
+                    color: const Color(0xFF64748B),
+                  ),
+
+                  // Middle Bid Display
+                  Column(
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          const Text(
+                            '\$ ',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF0284C7),
+                            ),
+                          ),
+                          Text(
+                            '$_selectedBid',
+                            style: const TextStyle(
+                              fontSize: 38,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF0F172A),
+                              letterSpacing: -1,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE0F2FE),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '≈ $formattedIqd IQD',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0284C7),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Plus Button
+                  _StepButton(
+                    icon: Icons.add_rounded,
+                    onTap: () => _adjustBid(1),
+                    color: const Color(0xFF0284C7),
+                  ),
+                ],
               ),
             ],
           ),
         ),
 
-        // Content
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Product Title
-                Text(
-                  'Auction Item',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: isDark
-                            ? AppColors.textSecondaryDark
-                            : AppColors.textSecondaryLight,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  widget.productTitle,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+        const SizedBox(height: 14),
 
-                const SizedBox(height: 24),
+        // Quick Increment Chips
+        SizedBox(
+          height: 38,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _quickIncrements.length,
+            itemBuilder: (context, idx) {
+              final inc = _quickIncrements[idx];
+              final isMatch = _selectedBid == (widget.currentBid + inc);
 
-                // Current Bid Info
-                Container(
-                  padding: const EdgeInsets.all(16),
+              return GestureDetector(
+                onTap: () => _onQuickIncrement(inc),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
                   decoration: BoxDecoration(
-                    color: AppColors.blue50,
-                    borderRadius: BorderRadius.circular(24),
+                    color: isMatch ? const Color(0xFF0284C7) : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isMatch ? const Color(0xFF0284C7) : const Color(0xFFE2E8F0),
+                    ),
+                    boxShadow: isMatch
+                        ? [
+                            BoxShadow(
+                              color: const Color(0xFF0284C7).withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ]
+                        : null,
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Current Bid',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppColors.blue600,
-                                ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '\$${_formatCurrency(widget.currentBid)}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.blue600,
-                            ),
-                          ),
-                        ],
+                  child: Center(
+                    child: Text(
+                      '+ \$$inc',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: isMatch ? Colors.white : const Color(0xFF334155),
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'Minimum Bid',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppColors.blue600,
-                                ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '\$${_formatCurrency(_minBid)}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.blue600,
-                            ),
-                          ),
-                        ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // Confirm Bid Button
+        SizedBox(
+          height: 54,
+          child: ElevatedButton(
+            onPressed: _isSubmitting ? null : () => _handleSubmit(isArabic),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0284C7),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+            child: _isSubmitting
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.gavel_rounded, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        isArabic
+                            ? 'تأكيد المزايدة بمبلغ \$$_selectedBid'
+                            : 'Place Bid Now (\$$_selectedBid)',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.1,
+                        ),
                       ),
                     ],
                   ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Bid Amount Input
-                Text(
-                  'Your Bid Amount',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _bidController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  decoration: InputDecoration(
-                    prefixText: '\$ ',
-                    hintText: _minBid.toString(),
-                    filled: true,
-                    fillColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 20,
-                    ),
-                  ),
-                  onChanged: (_) => setState(() {}),
-                ),
-
-                if (_bidController.text.isNotEmpty &&
-                    (int.tryParse(_bidController.text) ?? 0) < _minBid)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Row(
-                      children: [
-                        Icon(Icons.error_outline,
-                            size: 16, color: AppColors.error),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Bid must be at least \$${_formatCurrency(_minBid)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.error,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                const SizedBox(height: 24),
-
-                // Quick Bid Options
-                Text(
-                  'Quick Bid Options',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: isDark
-                            ? AppColors.textSecondaryDark
-                            : AppColors.textSecondaryLight,
-                      ),
-                ),
-                const SizedBox(height: 12),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    childAspectRatio: 2.5,
-                  ),
-                  itemCount: _suggestedBids.length,
-                  itemBuilder: (context, index) {
-                    final amount = _suggestedBids[index];
-                    final isSelected =
-                        _bidController.text == amount.toString();
-                    return GestureDetector(
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        setState(() {
-                          _bidController.text = amount.toString();
-                        });
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.blue50
-                              : (isDark
-                                  ? AppColors.slate800
-                                  : AppColors.surfaceLight),
-                          border: Border.all(
-                            color: isSelected
-                                ? AppColors.blue600
-                                : (isDark
-                                    ? AppColors.slate700
-                                    : AppColors.slate200),
-                            width: 2,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.trending_up,
-                              size: 16,
-                              color: isSelected
-                                  ? AppColors.blue600
-                                  : (isDark
-                                      ? AppColors.textSecondaryDark
-                                      : AppColors.textSecondaryLight),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '\$${_formatCurrency(amount)}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: isSelected
-                                    ? AppColors.blue600
-                                    : (isDark
-                                        ? AppColors.textPrimaryDark
-                                        : AppColors.textPrimaryLight),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 32),
-
-                // Submit Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _isValidBid && !_isSubmitting
-                        ? _handleSubmit
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.blue600,
-                      foregroundColor: AppColors.cardWhite,
-                      disabledBackgroundColor: AppColors.blue600.withOpacity(0.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                    ),
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(AppColors.cardWhite),
-                            ),
-                          )
-                        : const Text(
-                            'Confirm Bid',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Terms
-                Text(
-                  'By placing a bid, you agree to our terms and conditions',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: isDark
-                            ? AppColors.textSecondaryDark
-                            : AppColors.textSecondaryLight,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
           ),
         ),
       ],
     );
   }
-
-  String _formatCurrency(int amount) {
-    return amount.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]},',
-        );
-  }
 }
 
+class _StepButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final Color color;
+
+  const _StepButton({
+    required this.icon,
+    required this.onTap,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Icon(icon, color: color, size: 24),
+      ),
+    );
+  }
+}

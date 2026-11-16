@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import '../theme/colors.dart';
-import '../services/app_localizations.dart';
+import 'package:go_router/go_router.dart';
+import '../services/language_service.dart';
 
 class SellerAnalyticsScreen extends StatefulWidget {
   const SellerAnalyticsScreen({super.key});
@@ -12,71 +10,220 @@ class SellerAnalyticsScreen extends StatefulWidget {
 }
 
 class _SellerAnalyticsScreenState extends State<SellerAnalyticsScreen> {
-  bool _isLoading = false;
-
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colorScheme = Theme.of(context).colorScheme;
+    final isAr = LanguageService.isArabic;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Seller Analytics'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
         elevation: 0,
-        foregroundColor: isDark ? Colors.white : Colors.black,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: Color(0xFF0F172A)),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/seller-dashboard');
+            }
+          },
+        ),
+        title: Text(
+          isAr ? 'إحصائيات وتحليلات التاجر' : 'Seller Analytics & Insights',
+          style: const TextStyle(
+            color: Color(0xFF0F172A),
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+          ),
+        ),
+        centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildStatGrid(isDark),
-            const SizedBox(height: 24),
-            _buildChartSection(
-              title: 'Weekly Bidding Activity',
-              chart: _buildBarChart(isDark),
-              isDark: isDark,
-            ),
-            const SizedBox(height: 24),
-            _buildChartSection(
-              title: 'Revenue Overview',
-              chart: _buildLineChart(isDark),
-              isDark: isDark,
-            ),
-          ],
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Top KPI Grid
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildMetricCard(
+                      title: isAr ? 'مزادات نشطة' : 'Active Auctions',
+                      value: '18',
+                      icon: Icons.bolt_rounded,
+                      color: const Color(0xFF0284C7),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildMetricCard(
+                      title: isAr ? 'معدل النجاح' : 'Success Rate',
+                      value: '94.2%',
+                      icon: Icons.trending_up_rounded,
+                      color: const Color(0xFF10B981),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildMetricCard(
+                      title: isAr ? 'إجمالي المزايدات' : 'Total Bids Placed',
+                      value: '3,420',
+                      icon: Icons.gavel_rounded,
+                      color: const Color(0xFFF59E0B),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildMetricCard(
+                      title: isAr ? 'العملاء المشترون' : 'Unique Buyers',
+                      value: '840',
+                      icon: Icons.people_outline_rounded,
+                      color: const Color(0xFF6366F1),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 28),
+
+              // Weekly Volume Breakdown Card
+              Text(
+                isAr ? 'حجم المزايدات الأسبوعي' : 'Weekly Bidding Activity',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          isAr ? 'ذروة التفاعل' : 'Peak Activity',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            '+28% vs last week',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF10B981),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Modern Bar Visualizer
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        _buildBar(day: 'Sat', height: 45, isPeak: false),
+                        _buildBar(day: 'Sun', height: 60, isPeak: false),
+                        _buildBar(day: 'Mon', height: 85, isPeak: false),
+                        _buildBar(day: 'Tue', height: 110, isPeak: false),
+                        _buildBar(day: 'Wed', height: 95, isPeak: false),
+                        _buildBar(day: 'Thu', height: 140, isPeak: true),
+                        _buildBar(day: 'Fri', height: 130, isPeak: true),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 28),
+
+              // Quality and Logistics Status
+              Text(
+                isAr ? 'تقييم التاجر وموثوقية الشحن' : 'Seller Rating & Reliability',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 28),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '4.92 / 5.0 VIP Merchant',
+                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            isAr ? 'بناءً على 420 مراجعة تسليم موثقة عبر العراق' : 'Based on 420 verified buyer delivery handoffs',
+                            style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStatGrid(bool isDark) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 16,
-      crossAxisSpacing: 16,
-      childAspectRatio: 1.5,
-      children: [
-        _buildStatCard('Total Sales', '1,240 \$', Icons.monetization_on, Colors.green, isDark),
-        _buildStatCard('Active Bids', '45', Icons.gavel, Colors.blue, isDark),
-        _buildStatCard('Views', '3.5k', Icons.visibility, Colors.purple, isDark),
-        _buildStatCard('Success Rate', '88%', Icons.trending_up, Colors.orange, isDark),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(String label, String value, IconData icon, Color color, bool isDark) {
+  Widget _buildMetricCard({required String title, required String value, required IconData icon, required Color color}) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -84,138 +231,62 @@ class _SellerAnalyticsScreenState extends State<SellerAnalyticsScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 14),
           Text(
             value,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF0F172A),
+              letterSpacing: -0.5,
+            ),
           ),
-          Text(
-            label,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(duration: 500.ms).scale(begin: const Offset(0.9, 0.9));
-  }
-
-  Widget _buildChartSection({required String title, required Widget chart, required bool isDark}) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+          const SizedBox(height: 2),
           Text(
             title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF64748B),
+            ),
           ),
-          const SizedBox(height: 20),
-          SizedBox(height: 200, child: chart),
         ],
-      ),
-    ).animate().slideY(begin: 0.1, end: 0, duration: 600.ms, curve: Curves.easeOut);
-  }
-
-  Widget _buildBarChart(bool isDark) {
-    return BarChart(
-      BarChartData(
-        gridData: FlGridData(show: false),
-        titlesData: FlTitlesData(
-          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (value, meta) {
-                const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                if (value.toInt() >= days.length) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Text(
-                    days[value.toInt()],
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-        borderData: FlBorderData(show: false),
-        barGroups: List.generate(7, (i) => BarChartGroupData(
-          x: i,
-          barRods: [
-            BarChartRodData(
-              toY: (i + 3) * 5.0,
-              gradient: LinearGradient(
-                colors: [AppColors.primaryBlue, AppColors.primaryBlue.withOpacity(0.6)],
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
-              ),
-              width: 14,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-            ),
-          ],
-        )),
       ),
     );
   }
 
-  Widget _buildLineChart(bool isDark) {
-    return LineChart(
-      LineChartData(
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          horizontalInterval: 2,
-          getDrawingHorizontalLine: (value) => FlLine(
-            color: isDark ? Colors.white10 : Colors.black12,
-            strokeWidth: 1,
+  Widget _buildBar({required String day, required double height, required bool isPeak}) {
+    final color = isPeak ? const Color(0xFF0284C7) : const Color(0xFFCBD5E1);
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Container(
+          width: 24,
+          height: height,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(6),
           ),
         ),
-        titlesData: const FlTitlesData(show: false),
-        borderData: FlBorderData(show: false),
-        lineBarsData: [
-          LineChartBarData(
-            spots: [
-              const FlSpot(0, 3),
-              const FlSpot(2, 4),
-              const FlSpot(4, 3.5),
-              const FlSpot(6, 5),
-              const FlSpot(8, 4.2),
-              const FlSpot(10, 6),
-            ],
-            isCurved: true,
-            gradient: const LinearGradient(
-              colors: [Colors.green, Colors.greenAccent],
-            ),
-            barWidth: 4,
-            isStrokeCapRound: true,
-            dotData: const FlDotData(show: false),
-            belowBarData: BarAreaData(
-              show: true,
-              gradient: LinearGradient(
-                colors: [
-                  Colors.green.withOpacity(0.3),
-                  Colors.green.withOpacity(0.0),
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
+        const SizedBox(height: 8),
+        Text(
+          day,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isPeak ? FontWeight.bold : FontWeight.w500,
+            color: isPeak ? const Color(0xFF0284C7) : const Color(0xFF64748B),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

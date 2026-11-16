@@ -29,6 +29,8 @@ class LanguageService {
     }
   }
 
+  static bool get isArabic => languageNotifier.value.languageCode == 'ar';
+
   static List<String> getAvailableLanguages() {
     return supportedLanguages.keys.toList();
   }

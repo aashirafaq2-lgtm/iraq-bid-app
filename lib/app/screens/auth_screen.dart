@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
-import '../theme/colors.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../services/app_localizations.dart';
+import '../services/language_service.dart';
 import '../utils/network_utils.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -18,7 +16,7 @@ class AuthScreen extends StatefulWidget {
   State<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> {
+class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateMixin {
   int _currentStep = 0; // 0: phone, 1: OTP
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _otpController = TextEditingController();
@@ -30,31 +28,47 @@ class _AuthScreenState extends State<AuthScreen> {
     6,
     (index) => FocusNode(),
   );
-  String _selectedCountryCode = '+964'; // Default to Iraq for backend compatibility
+  final String _selectedCountryCode = '+964';
   bool _isLoading = false;
   bool _isPhoneValid = false;
-  int _otpAttempts = 0;
-  String _normalizedPhone = ''; // Store normalized phone for verification
-  bool _acceptedTerms = false; // Terms and Conditions acceptance
+  String _normalizedPhone = '';
+  bool _acceptedTerms = true;
 
-  static const int _maxOTPAttempts = 5;
+  late AnimationController _animController;
+  late Animation<double> _fadeAnim;
+  late Animation<Offset> _slideAnim;
 
-  // No hardcoded colors - using theme colors
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0, 0.05),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic));
+    _animController.forward();
+  }
 
-  // Backend currently supports Iraq only - limiting to Iraq codes
-  final List<CountryCode> _countryCodes = [
-    CountryCode(code: '+964', country: '🇮🇶 Iraq', maxLength: 10), // +964 is already shown, user enters 10 digits
-  ];
-
-  int get _maxPhoneLength {
-    return _countryCodes
-        .firstWhere((c) => c.code == _selectedCountryCode)
-        .maxLength;
+  @override
+  void dispose() {
+    _animController.dispose();
+    _phoneController.dispose();
+    _otpController.dispose();
+    for (var controller in _otpControllers) {
+      controller.dispose();
+    }
+    for (var node in _otpFocusNodes) {
+      node.dispose();
+    }
+    super.dispose();
   }
 
   bool get _isPhoneNumberValid {
     final phoneDigits = _phoneController.text.replaceAll(RegExp(r'[^\d]'), '');
-    // User enters exactly 10 digits (since +964 is already shown)
     return phoneDigits.length == 10;
   }
 
@@ -67,38 +81,11 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    _phoneController.dispose();
-    _otpController.dispose();
-    for (var controller in _otpControllers) {
-      controller.dispose();
-    }
-    for (var node in _otpFocusNodes) {
-      node.dispose();
-    }
-    super.dispose();
-  }
-
   Future<void> _handlePhoneSubmit() async {
-    // Validate Iraq (+964) restriction
-    if (_selectedCountryCode != '+964') {
-      _showError(
-        AppLocalizations.of(context)?.invalidPhone ?? 'Invalid Phone Number',
-        AppLocalizations.of(context)?.onlyIraqNumbers ?? 'Only Iraq (+964) numbers are allowed.',
-      );
-      return;
-    }
-
     if (!_isPhoneValid) {
       _showError(
         AppLocalizations.of(context)?.invalidPhone ?? 'Invalid Phone Number',
-        AppLocalizations.of(context)?.enterValidPhone ?? 'Please enter a valid phone number',
+        AppLocalizations.of(context)?.enterValidPhone ?? 'Please enter a valid 10-digit phone number',
       );
       return;
     }
@@ -108,814 +95,505 @@ class _AuthScreenState extends State<AuthScreen> {
     });
 
     try {
-      // Normalize phone number to match backend normalizeIraqPhone() rules
       final phoneDigits = _phoneController.text.replaceAll(RegExp(r'[^\d]'), '');
       String normalizedPhone = '';
-      
-      // Apply backend normalization rules
+
       if (phoneDigits.startsWith('0')) {
         normalizedPhone = '+964${phoneDigits.substring(1)}';
       } else if (phoneDigits.startsWith('00964')) {
         normalizedPhone = '+964${phoneDigits.substring(5)}';
       } else if (phoneDigits.startsWith('964')) {
         normalizedPhone = '+$phoneDigits';
-      } else if (_selectedCountryCode == '+964') {
-        normalizedPhone = '$_selectedCountryCode$phoneDigits';
       } else {
-        _showError('Invalid Phone Number', 'Only Iraq (+964) numbers are allowed.');
-        setState(() {
-          _isLoading = false;
-        });
-        return;
+        normalizedPhone = '$_selectedCountryCode$phoneDigits';
       }
-      
-      // Validate phone format (must start with +964 and have exactly 10 digits after)
-      if (!normalizedPhone.startsWith('+964')) {
-        _showError('Invalid Phone Number', 'Only Iraq (+964) numbers are allowed.');
-        setState(() {
-          _isLoading = false;
-        });
-        return;
-      }
-      
-      // Validate phone length (Iraq format: +964 + exactly 10 digits)
-      final digitsAfterPrefix = normalizedPhone.substring(4); // Remove '+964'
+
+      final digitsAfterPrefix = normalizedPhone.substring(4);
       if (digitsAfterPrefix.length != 10) {
         _showError(
           AppLocalizations.of(context)?.invalidPhone ?? 'Invalid Phone Number',
           AppLocalizations.of(context)?.phoneMustBe10Digits ?? 'Phone number must be exactly 10 digits',
         );
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
         return;
       }
-      
+
       _normalizedPhone = normalizedPhone;
-      if (kDebugMode) {
-        print('📱 Phone normalized: $_normalizedPhone');
-        print('📤 Sending OTP request to backend with phone: $_normalizedPhone');
-      }
-      
-      // Call POST /auth/send-otp via Twilio Verify
-      await apiService.sendOTP(_normalizedPhone, type: 'login');
-      if (kDebugMode) {
-        print('✅ OTP sent successfully via Twilio Verify to: $_normalizedPhone');
-      }
-      
+      final res = await apiService.sendOTP(_normalizedPhone, type: 'login');
+
       setState(() {
         _isLoading = false;
         _currentStep = 1;
       });
+      _animController.reset();
+      _animController.forward();
 
       if (mounted) {
+        final debugOtp = res['debug_otp'];
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppLocalizations.of(context)?.otpSentToPhone ?? 'OTP sent to your phone. Please check your SMS.'),
-            backgroundColor: AppColors.info,
-            duration: const Duration(seconds: 3),
+            content: Text(
+              LanguageService.isArabic
+                  ? 'تم إرسال رمز التحقق عبر الواتساب والرسائل القصيرة'
+                  : 'Verification code sent via WhatsApp & SMS${debugOtp != null ? " ($debugOtp)" : ""}',
+            ),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error sending OTP: $e');
-      }
-      setState(() {
-        _isLoading = false;
-      });
-
+      setState(() => _isLoading = false);
       if (mounted) {
-        String errorMsg = AppLocalizations.of(context)?.failedToSendOtp ?? 'Failed to send OTP. Please try again.';
-        
-        // Check for network connectivity errors first
+        String errorMsg = AppLocalizations.of(context)?.failedToSendOtp ?? 'Failed to send OTP';
         if (NetworkUtils.isNetworkError(e)) {
           errorMsg = NetworkUtils.getNetworkErrorMessage(e);
-          _showError('No Internet Connection', errorMsg);
-          return;
+        } else if (e is DioException && e.response?.data is Map) {
+          errorMsg = e.response?.data['message'] ?? errorMsg;
         }
-        
-        // Extract error message from backend response first
-        if (e is DioException && e.response != null) {
-          final responseData = e.response?.data;
-          if (responseData is Map && responseData.containsKey('message')) {
-            final backendMessage = responseData['message'] as String;
-            // Use backend message directly if available
-            errorMsg = backendMessage;
-          }
-        }
-        
-        // Handle specific error patterns
-        if (e.toString().contains('404') || e.toString().contains('not registered')) {
-          errorMsg = 'Phone number not registered. Please contact administrator.';
-        } else if (e.toString().contains('Invalid phone number format') || e.toString().contains('Invalid phone')) {
-          errorMsg = 'Invalid phone number format. Please check and try again.';
-        } else if (e.toString().contains('Unable to deliver SMS') || e.toString().contains('30008')) {
-          errorMsg = 'Unable to deliver SMS to this number. Please check your phone number or contact support.';
-        } else if (e.toString().contains('Unable to send SMS')) {
-          errorMsg = 'Unable to send SMS. Please try again later.';
-        } else if (e.toString().contains('No Internet Connection') || e.toString().contains('Connection Timeout')) {
-          errorMsg = e.toString();
-        }
-        
-        _showError('OTP Error', errorMsg);
+        _showError('Authentication Error', errorMsg);
       }
     }
   }
 
-  String get _enteredOTP {
-    return _otpControllers.map((c) => c.text).join();
-  }
+  String get _enteredOTP => _otpControllers.map((c) => c.text).join();
 
   Future<void> _handleOTPVerify() async {
     final otp = _enteredOTP;
     if (otp.length != 6) {
       _showError(
         AppLocalizations.of(context)?.invalidOtp ?? 'Invalid OTP',
-        AppLocalizations.of(context)?.enter6DigitOtp ?? 'Please enter the 6-digit OTP',
+        AppLocalizations.of(context)?.enter6DigitOtp ?? 'Please enter the complete 6-digit code',
       );
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      // Ensure we're using the entered phone, not stored phone
       if (_normalizedPhone.isEmpty) {
-        // Reconstruct from controller if somehow empty
         final phoneDigits = _phoneController.text.replaceAll(RegExp(r'[^\d]'), '');
         _normalizedPhone = '$_selectedCountryCode$phoneDigits';
-        if (kDebugMode) {
-          print('⚠️ _normalizedPhone was empty during verify, reconstructed: $_normalizedPhone');
-        }
       }
-      
-      if (kDebugMode) {
-        print('🔐 Verifying OTP via Twilio Verify');
-        print('📱 Phone: $_normalizedPhone');
-        // Note: OTP is hidden in logs for security
-      }
-      
-      // Call POST /auth/verify-otp with phone + otp
-      // Backend will verify OTP via Twilio Verify API
-      
+
       final response = await apiService.verifyOTP(
         _normalizedPhone,
         otp,
         type: 'login',
       );
-      
-      if (kDebugMode) {
-        print('📦 Full response from verifyOTP:');
-        print('   success: ${response['success']}');
-        print('   token: ${response['token'] != null ? 'present' : 'missing'}');
-        print('   accessToken: ${response['accessToken'] != null ? 'present' : 'missing'}');
-        print('   user: ${response['user'] != null ? 'present' : 'missing'}');
-        print('   role: ${response['role']}');
-      }
-      
-      setState(() {
-        _isLoading = false;
-      });
 
-      if (mounted) {
-        // Check if response has success and token
-        final hasSuccess = response['success'] == true;
-        final hasToken = response['token'] != null || response['accessToken'] != null;
-        
-        if (kDebugMode) {
-          print('🔍 Response validation:');
-          print('   success == true: $hasSuccess');
-          print('   hasToken: $hasToken');
-          print('   Will proceed: ${hasSuccess && hasToken}');
+      setState(() => _isLoading = false);
+
+      final hasSuccess = response['success'] == true;
+      final hasToken = response['token'] != null || response['accessToken'] != null;
+
+      if (hasSuccess && hasToken) {
+        final user = response['user'];
+        final role = (response['role'] ?? user?['role'] ?? 'company_products').toString().toLowerCase();
+
+        final savedToken = await StorageService.getToken();
+        if (savedToken == null) {
+          final accessToken = response['accessToken'] ?? response['token'];
+          if (accessToken != null) {
+            await StorageService.saveToken(accessToken as String);
+          }
         }
-        
-        if (hasSuccess && hasToken) {
-          // ✅ CONFIRMATION: OTP VERIFIED
-          if (kDebugMode) {
-            print('========================================');
-            print('✅ OTP VERIFICATION: SUCCESS');
-            print('✅ Response Success: YES');
-            print('✅ Token Present: YES');
-            print('========================================');
-          }
-          
-          final user = response['user'];
-          final role = (response['role'] ?? user?['role'] ?? 'company_products').toString().toLowerCase();
-          
-          if (kDebugMode) {
-            print('✅ OTP verified successfully - Login successful');
-            print('🧠 Role detected: $role');
-            print('   User ID: ${user?['id'] ?? 'N/A'}');
-            print('   User Name: ${user?['name'] ?? 'N/A'}');
-            print('   User Email: ${user?['email'] ?? 'N/A'}');
-          }
-          
-          // Note: verifyOTP already saves tokens and user data in api_service.dart
-          // Verify token was saved
-          final savedToken = await StorageService.getToken();
-          if (savedToken == null) {
-            if (kDebugMode) {
-              print('⚠️ Warning: Token not found in storage');
-            }
-            // Save token if not already saved by verifyOTP
-            final accessToken = response['accessToken'] ?? response['token'];
-            if (accessToken != null) {
-              await StorageService.saveToken(accessToken as String);
-            }
-          }
-          
-          // 🔧 FIX: Ensure user data is saved even if verifyOTP didn't save it
-          final savedUserId = await StorageService.getUserId();
-          final savedPhone = await StorageService.getUserPhone();
-          
-          if (savedUserId == null || savedPhone == null) {
-            if (kDebugMode) {
-              print('⚠️ Warning: User data not found in storage after OTP verification');
-              print('   Attempting to save user data from response...');
-            }
-            
-            if (user != null && user['id'] != null) {
-              // Save user data from response
-              await StorageService.saveUserData(
-                userId: user['id'] as int,
-                role: role,
-                phone: _normalizedPhone,
-                name: user['name'] as String?,
-                email: user['email'] as String?,
-              );
-              if (kDebugMode) {
-                print('✅ User data saved from response');
-              }
-            } else {
-              // If user data is missing from response, try to fetch from profile
-              if (kDebugMode) {
-                print('⚠️ User data missing from response, fetching from profile endpoint...');
-              }
-              try {
-                final profile = await apiService.getProfile();
-                await StorageService.saveUserData(
-                  userId: profile.id,
-                  role: role,
-                  phone: _normalizedPhone,
-                  name: profile.name,
-                  email: profile.email,
-                );
-                if (kDebugMode) {
-                  print('✅ User data fetched and saved from profile endpoint');
-                }
-              } catch (e) {
-                if (kDebugMode) {
-                  print('❌ Failed to fetch user profile: $e');
-                }
-                // Still save what we have (at least phone and role)
-                await StorageService.saveUserData(
-                  userId: 0, // Temporary - will be updated later
-                  role: role,
-                  phone: _normalizedPhone,
-                  name: null,
-                  email: null,
-                );
-              }
-            }
-          } else {
-            if (kDebugMode) {
-              print('✅ User data already saved in storage');
-              print('   User ID: $savedUserId');
-              print('   Phone: $savedPhone');
-            }
-          }
 
-          // Show success message
-          if (mounted) {
-            final userName = user?['name'] as String?;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Login successful! Welcome ${userName ?? 'to BidMaster'}'),
-                backgroundColor: AppColors.success,
-                duration: const Duration(seconds: 2),
+        if (user != null && user['id'] != null) {
+          await StorageService.saveUserData(
+            userId: user['id'] as int,
+            role: role,
+            phone: _normalizedPhone,
+            name: user['name'] as String?,
+            email: user['email'] as String?,
+          );
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                LanguageService.isArabic
+                    ? 'تم تسجيل الدخول بنجاح! أهلاً بك في منصة مزاد العراق'
+                    : 'Login successful! Welcome to Iraq Bid Platform',
               ),
-            );
-          }
-
-          // Wait a moment for UI to update
-          await Future.delayed(const Duration(milliseconds: 500));
-
-          if (!mounted) {
-            if (kDebugMode) {
-              print('⚠️ Widget not mounted, cannot navigate');
-            }
-            return;
-          }
-
-          // Always show role selection screen after login
-          final userName = user?['name'] as String?;
-          final userEmail = user?['email'] as String?;
-          
-          if (kDebugMode) {
-            print('🧭 Navigation check:');
-            print('   userName: ${userName ?? 'null'}');
-            print('   userEmail: ${userEmail ?? 'null'}');
-            print('   role: $role');
-          }
-          
-          try {
-            // Determine if user is new or existing based on name
-            final name = user?['name'] as String?;
-            final isNewUser = name == null || name.isEmpty;
-            
-            if (isNewUser) {
-              if (kDebugMode) {
-                print('🧭 New user detected (no name) - Navigating to RoleSelection in signup mode');
-              }
-              if (mounted) {
-                context.go('/role-selection?mode=signup');
-              }
-            } else {
-              // ✅ FIX: Existing user - navigate directly to dashboard based on their current role
-              // DO NOT go to role-selection as it triggers updateProfile API which can fail
-              // and loop the user back to /auth (Apple rejection bug 2.1a)
-              final existingRole = role.toLowerCase();
-              if (kDebugMode) {
-                print('🧭 Existing user detected - Navigating directly to dashboard');
-                print('   Role: $existingRole');
-              }
-              if (mounted) {
-                if (existingRole == 'seller_products') {
-                  context.go('/seller-dashboard');
-                } else {
-                  // Default: company_products, superadmin allowed to pick, etc.
-                  context.go('/home');
-                }
-              }
-            }
-            
-            if (kDebugMode) {
-              print('✅ Navigation completed');
-            }
-          } catch (e) {
-            if (kDebugMode) {
-              print('❌ Navigation error: $e');
-            }
-            // ❌ CONFIRMATION: NAVIGATION FAILED
-            if (kDebugMode) {
-              print('========================================');
-              print('❌ NAVIGATION: FAILED');
-              print('❌ Error: $e');
-              print('========================================');
-            }
-            // Fallback: try to navigate to home
-            if (mounted) {
-              try {
-                context.go('/home');
-                if (kDebugMode) {
-                  print('✅ Fallback navigation attempted');
-                }
-              } catch (e2) {
-                if (kDebugMode) {
-                  print('❌ Fallback navigation also failed: $e2');
-                }
-              }
-            }
-          }
-        } else {
-          // ❌ CONFIRMATION: OTP VERIFICATION FAILED
-          if (kDebugMode) {
-            print('========================================');
-            print('❌ OTP VERIFICATION: FAILED');
-            print('❌ Response success: ${response['success']}');
-            print('❌ Token present: ${response['token'] != null || response['accessToken'] != null}');
-            print('❌ NAVIGATION: NOT ATTEMPTED (verification failed)');
-            print('========================================');
-            print('   Full response: $response');
-          }
-          
-          final errorMessage = response['message'] ?? 
-                               response['error'] ?? 
-                               'Invalid OTP. Please try again.';
-          
-          if (kDebugMode) {
-            print('   Error message: $errorMessage');
-          }
-          
-          _showError('Verification failed', errorMessage);
+              backgroundColor: const Color(0xFF10B981),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
         }
+
+        await Future.delayed(const Duration(milliseconds: 400));
+        if (!mounted) return;
+
+        final name = user?['name'] as String?;
+        final isNewUser = name == null || name.isEmpty;
+
+        if (isNewUser) {
+          context.go('/role-selection?mode=signup');
+        } else {
+          if (role == 'seller_products') {
+            context.go('/seller-dashboard');
+          } else {
+            context.go('/home');
+          }
+        }
+      } else {
+        _showError('Verification Failed', 'Invalid response from server');
       }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _otpAttempts++;
-      });
-
-      if (kDebugMode) {
-        print('========================================');
-        print('❌ OTP VERIFICATION: EXCEPTION');
-        print('❌ Error: $e');
-        if (e is DioException && e.response != null) {
-          print('   Status Code: ${e.response?.statusCode}');
-          print('   Response Data: ${e.response?.data}');
-          print('   Error Message: ${e.response?.data?['message'] ?? e.response?.data?['error']}');
+      setState(() => _isLoading = false);
+      if (mounted) {
+        String errorMsg = 'Failed to verify OTP';
+        if (e is DioException && e.response?.data is Map) {
+          errorMsg = e.response?.data['message'] ?? errorMsg;
         }
-        print('========================================');
-      }
-
-      if (_otpAttempts >= _maxOTPAttempts) {
-        _showError('Too many failed attempts', 'Please request a new OTP');
-      } else {
-        String errorMsg = 'Invalid OTP. Please check and try again.';
-        
-        // Check for network connectivity errors first
-        if (NetworkUtils.isNetworkError(e)) {
-          errorMsg = NetworkUtils.getNetworkErrorMessage(e);
-          _showError('No Internet Connection', errorMsg);
-          return;
-        }
-        
-        // Extract error message from backend response
-        if (e is DioException && e.response != null) {
-          final responseData = e.response?.data;
-          if (responseData is Map) {
-            errorMsg = responseData['message'] ?? 
-                      responseData['error'] ?? 
-                      'Server error. Please try again.';
-            
-            // If 500 error, show more details in debug mode
-            if (e.response?.statusCode == 500) {
-              if (kDebugMode) {
-                errorMsg += '\n\nDebug: ${responseData['message'] ?? 'Internal server error'}';
-              }
-            }
-          }
-        }
-        
-        // Handle specific error codes
-        if (e.toString().contains('500') || e.toString().contains('Internal Server Error')) {
-          errorMsg = 'Server error occurred. Please try again or contact support.';
-        } else if (e.toString().contains('404') || e.toString().contains('not registered')) {
-          errorMsg = 'Phone number not registered. Please contact administrator.';
-        } else if (e.toString().contains('Invalid OTP') || e.toString().contains('expired')) {
-          errorMsg = 'Invalid or expired OTP. Please request a new OTP.';
-        } else if (e.toString().contains('401') || e.toString().contains('Unauthorized')) {
-          errorMsg = 'Invalid OTP. Please check the code and try again.';
-        } else if (e.toString().contains('Twilio') || e.toString().contains('SMS service')) {
-          errorMsg = 'SMS service temporarily unavailable. Please try again later.';
-        } else if (e.toString().contains('No Internet Connection') || e.toString().contains('Connection Timeout')) {
-          errorMsg = e.toString();
-        }
-        
-        _showError('Verification error', errorMsg);
+        _showError('Verification Error', errorMsg);
       }
     }
   }
 
   Future<void> _handleResendOTP() async {
-    setState(() {
-      for (var controller in _otpControllers) {
-        controller.clear();
-      }
-      _otpController.clear();
-      _isLoading = true;
-    });
-
+    setState(() => _isLoading = true);
     try {
-      // Ensure _normalizedPhone is set from entered phone, not stored
-      if (_normalizedPhone.isEmpty) {
-        // Reconstruct from controller if somehow empty
-        final phoneDigits = _phoneController.text.replaceAll(RegExp(r'[^\d]'), '');
-        _normalizedPhone = '$_selectedCountryCode$phoneDigits';
-        if (kDebugMode) {
-          print('⚠️ _normalizedPhone was empty, reconstructed: $_normalizedPhone');
-        }
-      }
-      
-      if (kDebugMode) {
-        print('📤 Resending OTP to: $_normalizedPhone');
-      }
-      
-      // Call POST /auth/send-otp via Twilio Verify
       await apiService.sendOTP(_normalizedPhone, type: 'login');
-      if (kDebugMode) {
-        print('✅ OTP resent successfully via Twilio Verify to: $_normalizedPhone');
-      }
-      
       setState(() {
         _isLoading = false;
-        // Clear OTP fields for new entry
-        for (var controller in _otpControllers) {
-          controller.clear();
+        for (var c in _otpControllers) {
+          c.clear();
         }
         _otpController.clear();
       });
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('OTP resent to your phone. Please check your SMS.'),
-            backgroundColor: AppColors.info,
-            duration: Duration(seconds: 3),
+          SnackBar(
+            content: Text(
+              LanguageService.isArabic
+                  ? 'تمت إعادة إرسال رمز التحقق بنجاح'
+                  : 'Verification code resent successfully',
+            ),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-
+      setState(() => _isLoading = false);
       if (mounted) {
-        String errorMsg = 'Failed to resend OTP. Please try again.';
-        
-        // Check for network connectivity errors first
-        if (NetworkUtils.isNetworkError(e)) {
-          errorMsg = NetworkUtils.getNetworkErrorMessage(e);
-          _showError('No Internet Connection', errorMsg);
-          return;
-        }
-        
-        // Handle specific Twilio Verify errors
-        if (e.toString().contains('404') || e.toString().contains('not registered')) {
-          errorMsg = 'Phone number not registered. Please contact administrator.';
-        } else if (e.toString().contains('Twilio') || e.toString().contains('SMS service')) {
-          errorMsg = 'SMS service temporarily unavailable. Please try again later.';
-        } else if (e.toString().contains('Invalid phone')) {
-          errorMsg = 'Invalid phone number format. Please check and try again.';
-        } else if (e.toString().contains('No Internet Connection') || e.toString().contains('Connection Timeout')) {
-          errorMsg = e.toString();
-        }
-        
-        _showError('Resend OTP Error', errorMsg);
+        _showError('Resend Error', 'Failed to resend OTP. Please wait a moment.');
       }
     }
   }
 
   void _showError(String title, String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-            Text(message),
-          ],
-        ),
-        backgroundColor: AppColors.error,
-        duration: const Duration(seconds: 3),
+        content: Text('$title: $message'),
+        backgroundColor: const Color(0xFFEF4444),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
+    final isAr = LanguageService.isArabic;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: _currentStep == 1
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: Color(0xFF1E293B)),
+                onPressed: () {
+                  setState(() => _currentStep = 0);
+                  _animController.reset();
+                  _animController.forward();
+                },
+              )
+            : null,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextButton.icon(
+              onPressed: () {
+                final newLang = isAr ? 'English' : 'Arabic';
+                LanguageService.setLanguage(newLang);
+                setState(() {});
+              },
+              icon: const Icon(Icons.language, size: 16, color: Color(0xFF0284C7)),
+              label: Text(
+                isAr ? 'English' : 'العربية',
+                style: const TextStyle(
+                  color: Color(0xFF0284C7),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              const SizedBox(height: 40),
-              
-              // Logo & Header
-              Column(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          child: FadeTransition(
+            opacity: _fadeAnim,
+            child: SlideTransition(
+              position: _slideAnim,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Image.asset(
-                    'assets/images/iraq_bid_logo.png',
-                    width: 120,
-                    height: 120,
-                    fit: BoxFit.contain,
+                  const SizedBox(height: 10),
+
+                  // Luxury Original Iraq Bid Logo
+                  Container(
+                    width: 180,
+                    height: 100,
+                    decoration: const BoxDecoration(
+                      color: Colors.transparent,
+                    ),
+                    child: Image.asset(
+                      'assets/images/iraq_bid_logo.png',
+                      fit: BoxFit.contain,
+                    ),
                   ),
+
                   const SizedBox(height: 24),
+
+                  // Title & Subtitle
                   Text(
                     _currentStep == 0
-                        ? (AppLocalizations.of(context)?.welcome ?? 'Welcome')
-                        : (AppLocalizations.of(context)?.verifyPhone ?? 'Verify Your Phone'),
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.onSurface,
-                        ),
+                        ? (isAr ? 'تسجيل الدخول إلى مزاد العراق' : 'Welcome to Iraq Bid')
+                        : (isAr ? 'تأكيد الرمز السري (OTP)' : 'Verify Phone Number'),
                     textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                      letterSpacing: -0.5,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     _currentStep == 0
-                        ? (AppLocalizations.of(context)?.enterPhone ?? 'Enter your phone number to get started')
-                        : '${AppLocalizations.of(context)?.otpSentMessage ?? 'We sent a code to'} $_selectedCountryCode ${_phoneController.text}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurface.withOpacity(0.7),
-                        ),
+                        ? (isAr
+                            ? 'أدخل رقم هاتفك لتسجيل الدخول بأمان واستكشاف المزادات المباشرة'
+                            : 'Enter your phone number to access live auctions and exclusive deals')
+                        : (isAr
+                            ? 'تم إرسال رمز التأكيد المكون من 6 أرقام إلى $_selectedCountryCode ${_phoneController.text}'
+                            : 'We sent a 6-digit verification code to $_selectedCountryCode ${_phoneController.text}'),
                     textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF64748B),
+                      height: 1.45,
+                    ),
                   ),
-                  if (_currentStep == 0) ...[
-                    const SizedBox(height: 24),
-                    Row(
+
+                  const SizedBox(height: 32),
+
+                  // Form Section
+                  if (_currentStep == 0) _buildPhoneStep(isAr) else _buildOtpStep(isAr),
+
+                  const SizedBox(height: 24),
+
+                  // Security & Guarantee Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          '${AppLocalizations.of(context)?.dontHaveAccount ?? "Don't have an account?"} ',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurface.withOpacity(0.7),
-                              ),
+                        const Icon(
+                          Icons.verified_user_outlined,
+                          size: 16,
+                          color: Color(0xFF10B981),
                         ),
-                        TextButton(
-                          onPressed: () {
-                            context.push('/role-selection?mode=signup');
-                          },
-                          child: Text(
-                            AppLocalizations.of(context)?.signUp ?? 'Sign Up',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.primary,
-                            ),
+                        const SizedBox(width: 8),
+                        Text(
+                          isAr
+                              ? 'حماية مشفرة 100% ورقمك محمي بالكامل'
+                              : '100% Encrypted & Bank-Grade Security',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF475569),
                           ),
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ],
-              ).animate().fadeIn(duration: 600.ms).slideY(begin: -0.1, end: 0),
-
-              const SizedBox(height: 48),
-
-              // Phone Input Step
-              if (_currentStep == 0) _buildPhoneStep(isDark).animate().fadeIn(delay: 200.ms).slideX(begin: 0.1, end: 0),
-
-              // OTP Verification Step
-              if (_currentStep == 1) _buildOTPStep(isDark).animate().fadeIn(delay: 100.ms).scale(begin: const Offset(0.95, 0.95)),
-            ],
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildPhoneStep(bool isDark) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    
+  Widget _buildPhoneStep(bool isAr) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Phone Number Input
-        Row(
-          children: [
-            // Country Code Selector
-            Container(
-              width: 120,
-              height: 56,
-              decoration: BoxDecoration(
-                color: colorScheme.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: colorScheme.onSurface.withOpacity(0.2),
-                ),
+        // Phone Input Card
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _isPhoneValid ? const Color(0xFF0284C7) : const Color(0xFFE2E8F0),
+              width: _isPhoneValid ? 1.5 : 1.0,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _selectedCountryCode,
-                  isExpanded: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  icon: Icon(Icons.arrow_drop_down, size: 20, color: colorScheme.onSurface.withOpacity(0.7)),
-                  style: TextStyle(color: colorScheme.onSurface),
-                  items: _countryCodes.map((country) {
-                    return DropdownMenuItem<String>(
-                      value: country.code,
-                      child: Text(
-                        '${country.country} ${country.code}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colorScheme.onSurface,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: Row(
+            children: [
+              // Country Code Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.flag_circle, size: 18, color: Color(0xFF0284C7)),
+                    SizedBox(width: 6),
+                    Text(
+                      '+964',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
                       ),
-                    );
-                  }).toList(),
-                  onChanged: null, // Disabled - only Iraq (+964) supported
+                    ),
+                  ],
                 ),
               ),
-            ),
+              const SizedBox(width: 12),
 
-            const SizedBox(width: 8),
-
-            // Phone Number Input
-            Expanded(
-              child: TextField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(_maxPhoneLength),
-                ],
-                style: TextStyle(
-                  fontSize: 16,
-                  color: colorScheme.onSurface,
-                ),
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)?.phoneNumber ?? 'Phone Number',
-                  labelStyle: TextStyle(color: colorScheme.onSurface.withOpacity(0.7)),
-                  prefixIcon: Icon(Icons.phone, size: 20, color: colorScheme.onSurface.withOpacity(0.7)),
-                  hintText: '9876543210',
-                  filled: true,
-                  fillColor: colorScheme.surface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colorScheme.onSurface.withOpacity(0.2)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colorScheme.onSurface.withOpacity(0.2)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colorScheme.primary, width: 2),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
+              // Phone Number Field
+              Expanded(
+                child: Container(
+                  color: Colors.transparent,
+                  child: TextField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    autofocus: true,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                      letterSpacing: 1.2,
+                      backgroundColor: Colors.transparent,
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(10),
+                    ],
+                    decoration: InputDecoration(
+                      hintText: isAr ? '770 123 4567' : '770 123 4567',
+                      hintStyle: const TextStyle(
+                        color: Color(0xFF94A3B8),
+                        letterSpacing: 1.0,
+                        fontWeight: FontWeight.normal,
+                      ),
+                      border: InputBorder.none,
+                      filled: false,
+                      fillColor: Colors.transparent,
+                      counterText: '',
+                    ),
+                    onChanged: (_) => _validatePhoneNumber(),
                   ),
                 ),
-                autofocus: true,
-                onChanged: (_) => _validatePhoneNumber(),
               ),
-            ),
-          ],
+
+              if (_isPhoneValid)
+                const Icon(
+                  Icons.check_circle,
+                  color: Color(0xFF10B981),
+                  size: 20,
+                ),
+            ],
+          ),
         ),
 
-        const SizedBox(height: 8),
-
+        const SizedBox(height: 12),
         Text(
-          "OTP will be sent to your phone via SMS",
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurface.withOpacity(0.7),
-              ),
+          isAr
+              ? 'يرجى إدخال 10 أرقام (مثال: 7701234567)'
+              : 'Enter exactly 10 digits (e.g. 7701234567)',
+          style: const TextStyle(
+            fontSize: 11,
+            color: Color(0xFF64748B),
+          ),
         ),
 
         const SizedBox(height: 16),
 
-        // Terms and Conditions Checkbox
+        // Terms Agreement Row
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Checkbox(
-              value: _acceptedTerms,
-              onChanged: (value) {
-                setState(() {
-                  _acceptedTerms = value ?? false;
-                });
-              },
-              activeColor: colorScheme.primary,
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: Checkbox(
+                value: _acceptedTerms,
+                activeColor: const Color(0xFF0284C7),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                onChanged: (val) => setState(() => _acceptedTerms = val ?? true),
+              ),
             ),
+            const SizedBox(width: 8),
             Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _acceptedTerms = !_acceptedTerms;
-                  });
-                },
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: RichText(
-                    text: TextSpan(
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurface.withOpacity(0.7),
-                            fontSize: 12,
-                          ),
-                      children: [
-                        const TextSpan(text: 'I agree to the '),
-                        TextSpan(
-                          text: 'Terms and Conditions',
-                          style: TextStyle(
-                            color: colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                            decoration: TextDecoration.underline,
-                          ),
-                          recognizer: TapGestureRecognizer()
-                            ..onTap = () {
-                              context.push('/terms-and-conditions');
-                            },
-                        ),
-                        const TextSpan(text: ' and '),
-                        TextSpan(
-                          text: 'Privacy Policy',
-                          style: TextStyle(
-                            color: colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                            decoration: TextDecoration.underline,
-                          ),
-                          recognizer: TapGestureRecognizer()
-                            ..onTap = () {
-                              context.push('/privacy-policy');
-                            },
-                        ),
-                      ],
+              child: RichText(
+                text: TextSpan(
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  children: [
+                    TextSpan(text: isAr ? 'أوافق على ' : 'I agree to the '),
+                    TextSpan(
+                      text: isAr ? 'الشروط والأحكام' : 'Terms & Conditions',
+                      style: const TextStyle(
+                        color: Color(0xFF0284C7),
+                        fontWeight: FontWeight.bold,
+                      ),
+                      recognizer: TapGestureRecognizer()
+                        ..onTap = () => context.push('/terms-and-conditions'),
                     ),
-                  ),
+                    TextSpan(text: isAr ? ' و ' : ' and '),
+                    TextSpan(
+                      text: isAr ? 'سياسة الخصوصية' : 'Privacy Policy',
+                      style: const TextStyle(
+                        color: Color(0xFF0284C7),
+                        fontWeight: FontWeight.bold,
+                      ),
+                      recognizer: TapGestureRecognizer()
+                        ..onTap = () => context.push('/privacy-policy'),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -924,119 +602,128 @@ class _AuthScreenState extends State<AuthScreen> {
 
         const SizedBox(height: 24),
 
-        // Send OTP Button
+        // Send OTP Action Button
         SizedBox(
-          height: 48,
+          height: 52,
           child: ElevatedButton(
-            onPressed: _isLoading || !_isPhoneValid || !_acceptedTerms
-                ? null
-                : _handlePhoneSubmit,
+            onPressed: (_isLoading || !_isPhoneValid || !_acceptedTerms) ? null : _handlePhoneSubmit,
             style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.primary,
-              foregroundColor: colorScheme.onPrimary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              backgroundColor: const Color(0xFF0284C7),
+              disabledBackgroundColor: const Color(0xFFE2E8F0),
+              foregroundColor: Colors.white,
               elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
             child: _isLoading
-                ? SizedBox(
+                ? const SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(colorScheme.onPrimary),
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
-                : Text(AppLocalizations.of(context)?.sendOtp ?? 'Send OTP'),
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        isAr ? 'إرسال رمز التأكيد' : 'Send Verification Code',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_rounded, size: 18),
+                    ],
+                  ),
           ),
         ),
 
+        const SizedBox(height: 20),
+
+        // Signup Navigation Link
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              isAr ? 'ليس لديك حساب بعد؟' : "Don't have an account?",
+              style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+            ),
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: () => context.push('/role-selection?mode=signup'),
+              child: Text(
+                isAr ? 'إنشاء حساب جديد' : 'Register Now',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0284C7),
+                ),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
 
-  Widget _buildOTPStep(bool isDark) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    
+  Widget _buildOtpStep(bool isAr) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Back Button
-        TextButton.icon(
-          onPressed: () {
-            setState(() {
-              _currentStep = 0;
-            });
-          },
-          icon: const Icon(Icons.arrow_back, size: 18),
-          label: const Text('Change phone number'),
-        ),
-
-        const SizedBox(height: 24),
-
-        // OTP Input Label
-        Center(
-          child: Text(
-            AppLocalizations.of(context)?.enter6DigitOtp ?? 'Enter 6-digit OTP',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // OTP Input (6 digits for backend)
+        // 6-digit OTP Row
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: List.generate(6, (index) {
             return Container(
               width: 48,
               height: 56,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              child: TextField(
-                controller: _otpControllers[index],
-                focusNode: _otpFocusNodes[index],
-                textAlign: TextAlign.center,
-                keyboardType: TextInputType.number,
-                maxLength: 1,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _otpControllers[index].text.isNotEmpty
+                      ? const Color(0xFF0284C7)
+                      : const Color(0xFFE2E8F0),
+                  width: _otpControllers[index].text.isNotEmpty ? 1.5 : 1.0,
                 ),
-                decoration: InputDecoration(
-                  counterText: '',
-                  filled: true,
-                  fillColor: Theme.of(context).colorScheme.surface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
-                    ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
-                    ),
+                ],
+              ),
+              child: Center(
+                child: TextField(
+                  controller: _otpControllers[index],
+                  focusNode: _otpFocusNodes[index],
+                  textAlign: TextAlign.center,
+                  keyboardType: TextInputType.number,
+                  maxLength: 1,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF0F172A),
+                    backgroundColor: Colors.transparent,
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: Theme.of(context).colorScheme.primary,
-                      width: 2,
-                    ),
+                  decoration: const InputDecoration(
+                    counterText: '',
+                    border: InputBorder.none,
+                    filled: false,
+                    fillColor: Colors.transparent,
                   ),
+                  onChanged: (val) {
+                    if (val.isNotEmpty && index < 5) {
+                      _otpFocusNodes[index + 1].requestFocus();
+                    } else if (val.isEmpty && index > 0) {
+                      _otpFocusNodes[index - 1].requestFocus();
+                    }
+                    setState(() {});
+                  },
                 ),
-                onChanged: (value) {
-                  if (value.isNotEmpty && index < 5) {
-                    _otpFocusNodes[index + 1].requestFocus();
-                  }
-                  // Update the main controller for verification check
-                  _otpController.text = _enteredOTP;
-                  // Trigger rebuild to enable/disable verify button
-                  setState(() {});
-                },
               ),
             );
           }),
@@ -1044,23 +731,17 @@ class _AuthScreenState extends State<AuthScreen> {
 
         const SizedBox(height: 24),
 
-        // Resend OTP
+        // Resend Action
         Center(
-          child: TextButton(
-            onPressed: _handleResendOTP,
-            child: RichText(
-              text: TextSpan(
-                text: "Didn't receive the code? ",
-                style: Theme.of(context).textTheme.bodySmall,
-                children: [
-                  TextSpan(
-                    text: AppLocalizations.of(context)?.resendOtp ?? 'Resend OTP',
-                    style: TextStyle(
-                      color: AppColors.blue600,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+          child: TextButton.icon(
+            onPressed: _isLoading ? null : _handleResendOTP,
+            icon: const Icon(Icons.refresh_rounded, size: 16, color: Color(0xFF0284C7)),
+            label: Text(
+              isAr ? 'لم تستلم الرمز؟ إعادة الإرسال' : "Didn't receive code? Resend SMS",
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0284C7),
               ),
             ),
           ),
@@ -1068,64 +749,37 @@ class _AuthScreenState extends State<AuthScreen> {
 
         const SizedBox(height: 24),
 
-        // Verify Button
+        // Verify and Continue Button
         SizedBox(
-          height: 48,
+          height: 52,
           child: ElevatedButton(
-            onPressed: _isLoading || _enteredOTP.length != 6
-                ? null
-                : _handleOTPVerify,
+            onPressed: (_isLoading || _enteredOTP.length != 6) ? null : _handleOTPVerify,
             style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.primary,
-              foregroundColor: colorScheme.onPrimary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              backgroundColor: const Color(0xFF0284C7),
+              disabledBackgroundColor: const Color(0xFFE2E8F0),
+              foregroundColor: Colors.white,
               elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
             child: _isLoading
-                ? SizedBox(
+                ? const SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(colorScheme.onPrimary),
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
-                : Text(AppLocalizations.of(context)?.verify ?? 'Verify & Continue'),
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        // Security Info
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: colorScheme.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            '🔒 Your phone number is secure and will never be shared with third parties',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.primary,
-                ),
-            textAlign: TextAlign.center,
+                : Text(
+                    isAr ? 'تأكيد ودخول المنصة' : 'Verify & Enter Platform',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
           ),
         ),
       ],
     );
   }
-}
-
-class CountryCode {
-  final String code;
-  final String country;
-  final int maxLength;
-
-  CountryCode({
-    required this.code,
-    required this.country,
-    required this.maxLength,
-  });
 }

@@ -340,20 +340,41 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
                         ),
                       )
                     else if (widget.endTime.isAfter(DateTime.now()))
-                      Container(
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
                         padding: RTLHelper.only(context, left: 10, right: 10, top: 6, bottom: 6),
                         decoration: BoxDecoration(
-                          color: _timerBg, // Green color
+                          color: (_remaining.inSeconds > 0 && _remaining.inSeconds <= 60)
+                              ? const Color(0xFFE53935) // Urgent pulsating red when < 60s
+                              : _timerBg, // Normal green
                           borderRadius: BorderRadius.circular(6),
+                          boxShadow: (_remaining.inSeconds > 0 && _remaining.inSeconds <= 60)
+                              ? [
+                                  BoxShadow(
+                                    color: const Color(0xFFE53935).withOpacity(0.4),
+                                    blurRadius: 8,
+                                    spreadRadius: 1,
+                                  ),
+                                ]
+                              : null,
                         ),
-                        child: Text(
-                          _formatDigitalTimer(),
-                          style: const TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                            color: _timerText,
-                            letterSpacing: 0.2,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_remaining.inSeconds > 0 && _remaining.inSeconds <= 60) ...[
+                              const Icon(Icons.alarm, size: 10, color: Colors.white),
+                              const SizedBox(width: 4),
+                            ],
+                            Text(
+                              _formatDigitalTimer(),
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                                color: _timerText,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ],
                         ),
                       )
                     else
@@ -399,7 +420,10 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
           ),
         ),
       ),
-    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutQuad);
+    ).animate()
+      .fadeIn(duration: 450.ms, curve: Curves.easeOut)
+      .slideY(begin: 0.12, end: 0, duration: 450.ms, curve: Curves.easeOutCubic)
+      .scaleXY(begin: 0.95, end: 1.0, duration: 400.ms, curve: Curves.easeOutBack);
   }
 
   String _formatCurrency(int amount) {

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:go_router/go_router.dart';
-import '../theme/colors.dart';
 import '../services/storage_service.dart';
 import '../services/api_service.dart';
-import '../utils/jwt_utils.dart';
+import '../services/language_service.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
   const RoleSelectionScreen({super.key});
@@ -13,142 +11,32 @@ class RoleSelectionScreen extends StatefulWidget {
   State<RoleSelectionScreen> createState() => _RoleSelectionScreenState();
 }
 
-class _RoleSelectionScreenState extends State<RoleSelectionScreen>
-    with SingleTickerProviderStateMixin {
-  String? _selectedRole;
+class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTickerProviderStateMixin {
+  String? _selectedRole = 'company_products';
   bool _isNavigating = false;
-  bool _isSignupMode = false; // Check if this is signup flow
-
-  // No hardcoded colors - using theme colors
-  // Note: iconColor will be set dynamically in _RoleCard based on theme
-
-  final List<RoleOption> _roles = [
-    RoleOption(
-      id: 'company_products',
-      title: 'Company products',
-      description: '',
-      icon: Icons.inventory_2_outlined,
-      iconColor: null, // Will be set from theme
-    ),
-    RoleOption(
-      id: 'seller_products',
-      title: 'Sellers products',
-      description: '',
-      icon: Icons.store_outlined,
-      iconColor: null, // Will be set from theme
-    ),
-  ];
+  late AnimationController _animController;
+  late Animation<double> _fadeAnim;
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
-    
-    // Check if this is signup mode from route parameters
-    final uri = GoRouterState.of(context).uri;
-    _isSignupMode = uri.queryParameters['mode'] == 'signup';
-
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              const SizedBox(height: 40),
-
-              // Header
-              Text(
-                'Type of product',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: 48),
-
-              // Role Options
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: _roles.map((role) {
-                      final isSelected = _selectedRole == role.id;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: _RoleCard(
-                          role: role,
-                          isSelected: isSelected,
-                          onTap: () {
-                            setState(() {
-                              _selectedRole = role.id;
-                            });
-                          },
-                          colorScheme: colorScheme,
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-
-              // Continue Button
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _selectedRole == null || _isNavigating
-                      ? null
-                      : _handleContinue,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
-                    disabledBackgroundColor:
-                        colorScheme.primary.withOpacity(0.5),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: _isNavigating
-                      ? SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(colorScheme.onPrimary),
-                          ),
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text('Continue'),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.arrow_forward, size: 18),
-                          ],
-                        ),
-                ),
-              ),
-
-            ],
-          ),
-        ),
-      ),
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
     );
+    _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
+    _animController.forward();
   }
 
-  Future<void> _handleContinue() async {
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleContinue(bool isSignupMode) async {
     if (_selectedRole == null || _isNavigating) return;
 
-    // Check if this is signup mode from route parameters
-    final uri = GoRouterState.of(context).uri;
-    final isSignupMode = uri.queryParameters['mode'] == 'signup';
-
-    // If signup mode, navigate to signup form
     if (isSignupMode) {
       if (mounted) {
         context.push('/signup?role=$_selectedRole');
@@ -156,77 +44,39 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
       return;
     }
 
-    // Check if user is logged in before proceeding
     final isLoggedIn = await StorageService.isLoggedIn();
     final accessToken = await StorageService.getAccessToken();
-    
+
     if (!isLoggedIn || accessToken == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please login first'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
-        );
-        // Redirect to login after a short delay
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) {
-            context.go('/auth');
-          }
-        });
+        context.go('/auth');
       }
       return;
     }
 
-    setState(() {
-      _isNavigating = true;
-    });
-
-    if (kDebugMode) {
-      print('🔄 Role selection: $_selectedRole');
-    }
+    setState(() => _isNavigating = true);
 
     try {
-      // 🔧 FIX: Check if user already has the selected role saved
-      // If so, skip the updateProfile API call and navigate directly
-      // This prevents the 401 loop that caused Apple's "login again" rejection
       final currentStoredRole = await StorageService.getUserRole();
-      final accessToken = await StorageService.getAccessToken();
-      
-      if (currentStoredRole == _selectedRole && accessToken != null) {
-        // User already has the correct role - navigate directly without API call
-        if (kDebugMode) {
-          print('✅ User already has role: $currentStoredRole - navigating directly (no API call needed)');
-        }
+      if (currentStoredRole == _selectedRole) {
         if (mounted) {
           if (_selectedRole == 'company_products') {
             context.go('/home');
-          } else if (_selectedRole == 'seller_products') {
+          } else {
             context.go('/seller-dashboard');
           }
         }
         return;
       }
 
-      if (kDebugMode) {
-        print('   Updating role in database via updateProfile API...');
-      }
-
       var userId = await StorageService.getUserId();
       var phone = await StorageService.getUserPhone();
-      
-      // 🔧 FIX: If user data is missing, try to fetch from profile endpoint
+
       if (userId == null || phone == null) {
-        if (kDebugMode) {
-          print('⚠️ Warning: userId or phone is null, attempting to fetch from profile...');
-        }
         try {
           final profile = await apiService.getProfile();
           userId = profile.id;
           phone = profile.phone;
-          
-          // Save the fetched user data
           await StorageService.saveUserData(
             userId: profile.id,
             role: profile.role,
@@ -234,292 +84,341 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
             name: profile.name,
             email: profile.email,
           );
-          if (kDebugMode) {
-            print('✅ User data fetched and saved from profile endpoint');
-          }
-        } catch (e) {
-          if (kDebugMode) {
-            print('❌ Failed to fetch user profile: $e');
-          }
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Please login first'),
-                backgroundColor: Colors.orange,
-                duration: Duration(seconds: 3),
-              ),
-            );
-            Future.delayed(const Duration(milliseconds: 500), () {
-              if (mounted) {
-                context.go('/auth');
-              }
-            });
-          }
-          setState(() {
-            _isNavigating = false;
-          });
-          return;
-        }
-      }
-      
-      // Final check - if still null after fetch attempt, redirect to login
-      if (userId == null || phone == null) {
-        if (kDebugMode) {
-          print('❌ Error: userId or phone is still null after fetch attempt');
-        }
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please login first'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 3),
-            ),
-          );
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted) {
-              context.go('/auth');
-            }
-          });
-        }
-        setState(() {
-          _isNavigating = false;
-        });
-        return;
+        } catch (_) {}
       }
 
-      // Call updateProfile API to update role in database and get new tokens
-      await apiService.updateProfile(role: _selectedRole!);
-      if (kDebugMode) {
-        print('✅ Role updated in database via API');
-        print('✅ New tokens received and saved with role: $_selectedRole');
-      }
-
-      // Verify role was saved correctly
-      final savedRole = await StorageService.getUserRole();
-      final token = await StorageService.getAccessToken();
-      final tokenRole = token != null ? JwtUtils.getRoleFromToken(token) : null;
-      
-      if (kDebugMode) {
-        print('   Verified saved role: $savedRole');
-        print('   Verified token role: $tokenRole');
-      }
-      
-      if (savedRole != _selectedRole) {
-        if (kDebugMode) {
-          print('⚠️ Warning: Saved role mismatch - retrying...');
-        }
-        // Role should have been updated by updateProfile, but verify
-        await StorageService.saveUserData(
-          userId: userId,
+      if (phone != null) {
+        await apiService.updateProfile(
           role: _selectedRole!,
           phone: phone,
-          name: await StorageService.getUserName(),
-          email: await StorageService.getUserEmail(),
         );
-      }
-
-      // Small delay for smooth visual feedback before navigation
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      if (mounted) {
-        if (kDebugMode) {
-          print('   Navigating to dashboard with role: $_selectedRole');
-        }
-        try {
-          // Skip profile-setup, go directly to dashboard based on role
-          if (_selectedRole == 'company_products') {
-            context.go('/home');
-          } else if (_selectedRole == 'seller_products') {
-            context.go('/seller-dashboard');
-          }
-          if (kDebugMode) {
-            print('✅ Navigation successful');
-          }
-        } catch (e) {
-          if (kDebugMode) {
-            print('❌ Navigation error: $e');
-          }
-          setState(() {
-            _isNavigating = false;
-          });
-        }
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error updating role: $e');
-      }
-      if (mounted) {
-        // Check if error is due to authentication failure
-        final errorMessage = e.toString().toLowerCase();
-        if (errorMessage.contains('401') || 
-            errorMessage.contains('unauthorized') || 
-            errorMessage.contains('token') ||
-            errorMessage.contains('login') ||
-            errorMessage.contains('session expired')) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please login first'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 3),
-            ),
+        if (userId != null) {
+          await StorageService.saveUserData(
+            userId: userId,
+            role: _selectedRole!,
+            phone: phone,
           );
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted) {
-              context.go('/auth');
-            }
-          });
+        }
+      }
+
+      if (mounted) {
+        if (_selectedRole == 'company_products') {
+          context.go('/home');
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to update role: ${e.toString()}'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
-            ),
-          );
+          context.go('/seller-dashboard');
         }
-        setState(() {
-          _isNavigating = false;
-        });
+      }
+    } catch (_) {
+      if (mounted) {
+        if (_selectedRole == 'company_products') {
+          context.go('/home');
+        } else {
+          context.go('/seller-dashboard');
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isNavigating = false);
       }
     }
-  }
-}
-
-class _RoleCard extends StatefulWidget {
-  final RoleOption role;
-  final bool isSelected;
-  final VoidCallback onTap;
-  final ColorScheme colorScheme;
-
-  const _RoleCard({
-    required this.role,
-    required this.isSelected,
-    required this.onTap,
-    required this.colorScheme,
-  });
-
-  @override
-  State<_RoleCard> createState() => _RoleCardState();
-}
-
-class _RoleCardState extends State<_RoleCard>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
-  }
-
-  @override
-  void didUpdateWidget(_RoleCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isSelected && !oldWidget.isSelected) {
-      _controller.forward();
-    } else if (!widget.isSelected && oldWidget.isSelected) {
-      _controller.reverse();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final uri = GoRouterState.of(context).uri;
+    final isSignupMode = uri.queryParameters['mode'] == 'signup';
+    final isAr = LanguageService.isArabic;
 
-    return GestureDetector(
-      onTap: widget.onTap,
-      child: AnimatedBuilder(
-        animation: _scaleAnimation,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _scaleAnimation.value,
-              child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: widget.colorScheme.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: widget.isSelected
-                      ? widget.colorScheme.primary
-                      : widget.colorScheme.onSurface.withOpacity(0.2),
-                  width: widget.isSelected ? 2 : 1,
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: Color(0xFF1E293B)),
+          onPressed: () => context.pop(),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextButton.icon(
+              onPressed: () {
+                final newLang = isAr ? 'English' : 'Arabic';
+                LanguageService.setLanguage(newLang);
+                setState(() {});
+              },
+              icon: const Icon(Icons.language, size: 16, color: Color(0xFF0284C7)),
+              label: Text(
+                isAr ? 'English' : 'العربية',
+                style: const TextStyle(
+                  color: Color(0xFF0284C7),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
                 ),
-                boxShadow: widget.isSelected
-                    ? [
-                        BoxShadow(
-                          color: widget.colorScheme.primary.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Row(
-                children: [
-                  // Icon Container
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      widget.role.icon,
-                      size: 32,
-                      color: widget.isSelected ? widget.colorScheme.primary : widget.colorScheme.onSurface.withOpacity(0.6),
-                    ),
-                  ),
-
-                  const SizedBox(width: 16),
-
-                  // Text Content
-                  Expanded(
-                    child: Text(
-                      widget.role.title,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: widget.isSelected ? widget.colorScheme.primary : widget.colorScheme.onSurface,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                    ),
-                  ),
-                ],
               ),
             ),
-          );
-        },
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: FadeTransition(
+          opacity: _fadeAnim,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 12),
+
+                // Top Badge
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0284C7).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      isAr ? 'اختر نوع الحساب وتجربة التسوق' : 'SELECT YOUR EXPERIENCE',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0284C7),
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Title
+                Text(
+                  isAr ? 'كيف ترغب في استخدام المنصة؟' : 'How would you like to explore?',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  isAr
+                      ? 'اختر بين التسوق في مزادات الشركة المباشرة أو الانضمام إلى نادي البائعين'
+                      : 'Choose between exclusive Company Auctions or our upcoming VIP Seller Club',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF64748B),
+                    height: 1.4,
+                  ),
+                ),
+
+                const SizedBox(height: 36),
+
+                // Option 1: Company Products (Buyer)
+                _buildRoleCard(
+                  id: 'company_products',
+                  icon: Icons.storefront_rounded,
+                  accentColor: const Color(0xFF0284C7),
+                  title: isAr ? 'مزادات الشركة الرسمية (مشتري)' : 'Company Products (Buyer)',
+                  description: isAr
+                      ? 'مزايدة مباشرة، منتجات أصلية 100% مع ضمان رسمي وتوصيل فوري لجميع محافظات العراق.'
+                      : 'Live auctions, 100% genuine guaranteed products with official warranty and rapid Iraq delivery.',
+                  badge: isAr ? 'موصى به' : 'ACTIVE',
+                  badgeColor: const Color(0xFF10B981),
+                  isSelected: _selectedRole == 'company_products',
+                  onTap: () => setState(() => _selectedRole = 'company_products'),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Option 2: Seller Products (VIP Seller Club)
+                _buildRoleCard(
+                  id: 'seller_products',
+                  icon: Icons.shield_rounded,
+                  accentColor: const Color(0xFFF59E0B),
+                  title: isAr ? 'نادي البائعين VIP (قريباً)' : 'VIP Seller Club (Coming Soon)',
+                  description: isAr
+                      ? 'منظومة تجار معتمدة، بيع آمن عبر الضمان البنكي وتسهيلات شحن حصرية في العراق.'
+                      : 'Verified merchant ecosystem, escrow protection and exclusive logistics across Iraq.',
+                  badge: isAr ? 'قريباً' : 'COMING SOON',
+                  badgeColor: const Color(0xFFF59E0B),
+                  isSelected: _selectedRole == 'seller_products',
+                  onTap: () => setState(() => _selectedRole = 'seller_products'),
+                ),
+
+                const Spacer(),
+
+                // Action Continue Button
+                SizedBox(
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: _isNavigating ? null : () => _handleContinue(isSignupMode),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0284C7),
+                      disabledBackgroundColor: const Color(0xFFE2E8F0),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: _isNavigating
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                isAr ? 'متابعة' : 'Continue',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.arrow_forward_rounded, size: 20),
+                            ],
+                          ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoleCard({
+    required String id,
+    required IconData icon,
+    required Color accentColor,
+    required String title,
+    required String description,
+    required String badge,
+    required Color badgeColor,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isSelected ? accentColor : const Color(0xFFE2E8F0),
+            width: isSelected ? 2.0 : 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isSelected ? accentColor.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.03),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, color: accentColor, size: 26),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: badgeColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              badge,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: badgeColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected ? accentColor : const Color(0xFFCBD5E1),
+                      width: 2,
+                    ),
+                  ),
+                  child: isSelected
+                      ? Center(
+                          child: Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: accentColor,
+                            ),
+                          ),
+                        )
+                      : null,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              description,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF64748B),
+                height: 1.45,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
-
-class RoleOption {
-  final String id;
-  final String title;
-  final String description;
-  final IconData icon;
-  final Color? iconColor; // Now nullable since we use theme colors
-
-  RoleOption({
-    required this.id,
-    required this.title,
-    required this.description,
-    required this.icon,
-    this.iconColor, // Now optional
-  });
-}
-

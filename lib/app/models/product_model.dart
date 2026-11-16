@@ -7,6 +7,7 @@ class ProductModel {
   final String title;
   final String? description;
   final String? imageUrl;
+  final List<String> images;
   final double startingPrice;
   final double? startingBid;
   final double? currentPrice;
@@ -24,6 +25,15 @@ class ProductModel {
   final double? hoursLeft;
   final String? auctionStatus;
   final String? condition; // New / Used / Working
+  final bool defectAlert;
+  final String? defectDetails;
+  final List<String> defectImages;
+
+  final double? buyNowPrice;
+  final double? originalRetailPrice;
+  final double? realPrice;
+  final String? specialDescription;
+  final DateTime? createdAt;
 
   ProductModel({
     required this.id,
@@ -31,6 +41,7 @@ class ProductModel {
     required this.title,
     this.description,
     this.imageUrl,
+    this.images = const [],
     required this.startingPrice,
     this.startingBid,
     this.currentPrice,
@@ -48,6 +59,14 @@ class ProductModel {
     this.hoursLeft,
     this.auctionStatus,
     this.condition,
+    this.defectAlert = false,
+    this.defectDetails,
+    this.defectImages = const [],
+    this.buyNowPrice,
+    this.originalRetailPrice,
+    this.realPrice,
+    this.specialDescription,
+    this.createdAt,
   });
 
   // Helper function to safely parse numeric values from JSON
@@ -96,12 +115,31 @@ class ProductModel {
       }
     }
     
+    // Parse images array
+    List<String> parsedImages = [];
+    if (json['images'] != null) {
+      if (json['images'] is List) {
+        parsedImages = (json['images'] as List)
+            .map((e) => e.toString().trim())
+            .where((url) => url.isNotEmpty)
+            .toList();
+      } else if (json['images'] is String) {
+        try {
+          final decoded = jsonDecode(json['images'] as String);
+          if (decoded is List) {
+            parsedImages = decoded.map((e) => e.toString().trim()).where((url) => url.isNotEmpty).toList();
+          }
+        } catch (_) {}
+      }
+    }
+
     return ProductModel(
       id: json['id'] as int,
       sellerId: json['seller_id'] as int?,
       title: json['title'] as String? ?? 'Untitled Product',
       description: json['description'] as String?,
       imageUrl: json['image_url'] as String?,
+      images: parsedImages,
       startingPrice: startingPrice,
       startingBid: _parseDouble(json['starting_bid']),
       currentPrice: _parseDouble(json['current_price']),
@@ -119,6 +157,16 @@ class ProductModel {
       hoursLeft: _parseDouble(json['hours_left']),
       auctionStatus: json['auction_status'] as String?,
       condition: json['condition'] as String?,
+      defectAlert: json['defect_alert'] == true || json['defect_alert'] == 'true',
+      defectDetails: json['defect_details'] as String?,
+      defectImages: json['defect_images'] != null
+          ? List<String>.from((json['defect_images'] as List).map((e) => e.toString()))
+          : const [],
+      buyNowPrice: _parseDouble(json['buy_now_price'] ?? json['buyNowPrice']),
+      originalRetailPrice: _parseDouble(json['original_retail_price'] ?? json['originalRetailPrice'] ?? json['real_price'] ?? json['realPrice']),
+      realPrice: _parseDouble(json['real_price'] ?? json['realPrice'] ?? json['original_retail_price'] ?? json['originalRetailPrice']),
+      specialDescription: json['special_description'] as String?,
+      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) : null,
     );
   }
 
@@ -149,34 +197,102 @@ class ProductModel {
     };
   }
 
+  ProductModel copyWith({
+    int? id,
+    int? sellerId,
+    String? title,
+    String? description,
+    String? imageUrl,
+    List<String>? images,
+    double? startingPrice,
+    double? startingBid,
+    double? currentPrice,
+    double? currentBid,
+    String? status,
+    DateTime? auctionEndTime,
+    int? totalBids,
+    int? highestBidderId,
+    int? categoryId,
+    String? sellerName,
+    String? sellerEmail,
+    String? sellerPhone,
+    String? categoryName,
+    String? highestBidderName,
+    double? hoursLeft,
+    String? auctionStatus,
+    String? condition,
+    bool? defectAlert,
+    String? defectDetails,
+    List<String>? defectImages,
+    double? buyNowPrice,
+    DateTime? createdAt,
+  }) {
+    return ProductModel(
+      id: id ?? this.id,
+      sellerId: sellerId ?? this.sellerId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      imageUrl: imageUrl ?? this.imageUrl,
+      images: images ?? this.images,
+      startingPrice: startingPrice ?? this.startingPrice,
+      startingBid: startingBid ?? this.startingBid,
+      currentPrice: currentPrice ?? this.currentPrice,
+      currentBid: currentBid ?? this.currentBid,
+      status: status ?? this.status,
+      auctionEndTime: auctionEndTime ?? this.auctionEndTime,
+      totalBids: totalBids ?? this.totalBids,
+      highestBidderId: highestBidderId ?? this.highestBidderId,
+      categoryId: categoryId ?? this.categoryId,
+      sellerName: sellerName ?? this.sellerName,
+      sellerEmail: sellerEmail ?? this.sellerEmail,
+      sellerPhone: sellerPhone ?? this.sellerPhone,
+      categoryName: categoryName ?? this.categoryName,
+      highestBidderName: highestBidderName ?? this.highestBidderName,
+      hoursLeft: hoursLeft ?? this.hoursLeft,
+      auctionStatus: auctionStatus ?? this.auctionStatus,
+      condition: condition ?? this.condition,
+      defectAlert: defectAlert ?? this.defectAlert,
+      defectDetails: defectDetails ?? this.defectDetails,
+      defectImages: defectImages ?? this.defectImages,
+      buyNowPrice: buyNowPrice ?? this.buyNowPrice,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
   // Helper method to get image URLs as list (with fixed URLs)
   List<String> get imageUrls {
-    if (imageUrl == null || imageUrl!.isEmpty) {
-      return [];
-    }
-    
-    try {
-      // Try to parse as JSON array
-      final parsed = jsonDecode(imageUrl!);
-      if (parsed is List) {
-        final urls = parsed.map((e) => e.toString()).where((url) => url.isNotEmpty).toList();
-        // Fix all URLs (convert relative to full URLs)
-        return ImageUrlHelper.fixImageUrls(urls).where((url) => url.isNotEmpty).toList();
+    final List<String> result = [];
+
+    // 1. First priority: images array
+    if (images.isNotEmpty) {
+      for (final img in images) {
+        if (img.trim().isNotEmpty) {
+          result.add(ImageUrlHelper.fixImageUrl(img.trim()));
+        }
       }
-    } catch (e) {
-      // If not JSON, treat as single URL string
-      final url = imageUrl!.trim();
-      if (url.isEmpty) return [];
-      // Fix URL (convert relative to full URL)
-      final fixedUrl = ImageUrlHelper.fixImageUrl(url);
-      return fixedUrl.isEmpty ? [] : [fixedUrl];
     }
-    
-    // Fallback: treat as single URL string
-    final url = imageUrl!.trim();
-    if (url.isEmpty) return [];
-    final fixedUrl = ImageUrlHelper.fixImageUrl(url);
-    return fixedUrl.isEmpty ? [] : [fixedUrl];
+
+    // 2. If images array had nothing, fallback to imageUrl
+    if (result.isEmpty && imageUrl != null && imageUrl!.trim().isNotEmpty) {
+      final trimmed = imageUrl!.trim();
+      try {
+        final parsed = jsonDecode(trimmed);
+        if (parsed is List) {
+          for (final item in parsed) {
+            final u = item.toString().trim();
+            if (u.isNotEmpty) {
+              result.add(ImageUrlHelper.fixImageUrl(u));
+            }
+          }
+        } else {
+          result.add(ImageUrlHelper.fixImageUrl(trimmed));
+        }
+      } catch (_) {
+        result.add(ImageUrlHelper.fixImageUrl(trimmed));
+      }
+    }
+
+    return result.where((u) => u.isNotEmpty).toList();
   }
 }
 

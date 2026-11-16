@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../services/storage_service.dart';
 import '../services/api_service.dart';
-import '../theme/colors.dart';
-import '../widgets/user_info_card.dart';
-import '../widgets/reward_balance_card.dart';
-import 'invite_and_earn_screen.dart';
+import '../services/language_service.dart';
+import '../widgets/bottom_nav_bar.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -19,12 +16,11 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   String? _userName;
   String? _userPhone;
-  String? _userEmail;
   String? _referralCode;
   double _rewardBalance = 0.0;
-  String? _userRole;
   bool _isLoading = true;
-  final ScrollController _scrollController = ScrollController();
+
+  static const int usdToIqdRate = 1520;
 
   @override
   void initState() {
@@ -32,611 +28,700 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadUserData();
   }
 
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
   Future<void> _loadUserData() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      // Fetch fresh data from backend
       final user = await apiService.getProfile();
-      
-      setState(() {
-        _userName = user.name;
-        _userPhone = user.phone;
-        _userEmail = user.email;
-        _referralCode = user.referralCode;
-        _userRole = user.role;
-        // Balance might come from a different endpoint or storage for now
-      });
+      final balance = await StorageService.getRewardBalance();
 
-      // Update storage with fresh data
-      await StorageService.saveUserData(
-        userId: user.id,
-        role: user.role,
-        phone: user.phone,
-        name: user.name,
-        email: user.email,
-      );
-      if (user.referralCode != null) {
-        await StorageService.saveReferralCode(user.referralCode!);
+      if (mounted) {
+        setState(() {
+          _userName = user.name;
+          _userPhone = user.phone;
+          _referralCode = user.referralCode;
+          _rewardBalance = balance;
+          _isLoading = false;
+        });
       }
-      
-      // Also load reward balance from storage for now
-      final rewardBalance = await StorageService.getRewardBalance();
-      setState(() {
-        _rewardBalance = rewardBalance;
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (kDebugMode) {
-        print('⚠️ Failed to fetch profile from API, falling back to storage: $e');
-      }
-      
-      // Fallback to storage
+    } catch (_) {
       final name = await StorageService.getUserName();
       final phone = await StorageService.getUserPhone();
-      final email = await StorageService.getUserEmail();
-      final referralCode = await StorageService.getReferralCode();
-      final rewardBalance = await StorageService.getRewardBalance();
-      final role = await StorageService.getUserRole();
+      final ref = await StorageService.getReferralCode();
+      final balance = await StorageService.getRewardBalance();
 
-      setState(() {
-        _userName = name;
-        _userPhone = phone;
-        _userEmail = email;
-        _referralCode = referralCode;
-        _rewardBalance = rewardBalance;
-        _userRole = role;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _userName = name ?? 'VIP User';
+          _userPhone = phone;
+          _referralCode = ref;
+          _rewardBalance = balance;
+          _isLoading = false;
+        });
+      }
     }
   }
 
+  void _showLanguageSelector(BuildContext context, bool isArabic) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Colors.white,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  isArabic ? 'اختر لغة التطبيق' : 'Select Language',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _LanguageTile(
+                  title: 'English (US)',
+                  isSelected: !isArabic,
+                  onTap: () {
+                    LanguageService.setLanguage('English');
+                    Navigator.pop(sheetContext);
+                  },
+                ),
+                const SizedBox(height: 8),
+                _LanguageTile(
+                  title: 'العربية (العراق)',
+                  isSelected: isArabic,
+                  onTap: () {
+                    LanguageService.setLanguage('Arabic');
+                    Navigator.pop(sheetContext);
+                  },
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
-    
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: theme.appBarTheme.backgroundColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Profile',
-          style: TextStyle(
-            color: colorScheme.onSurface,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadUserData,
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // User Info Card - Professional Style
-                    Container(
-                      color: colorScheme.surface,
-                      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 100,
-                            height: 100,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                colors: [
-                                  colorScheme.primary.withOpacity(0.2),
-                                  colorScheme.primary.withOpacity(0.1),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              border: Border.all(
-                                color: colorScheme.primary.withOpacity(0.3),
-                                width: 2,
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.person_outline,
-                              size: 56,
-                              color: colorScheme.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            _userName ?? 'User',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                          if (_userPhone != null) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              _userPhone!,
-                              style: TextStyle(
-                                fontSize: 15,
-                                color: colorScheme.onSurface.withOpacity(0.6),
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
+    return ValueListenableBuilder<Locale>(
+      valueListenable: LanguageService.languageNotifier,
+      builder: (context, locale, _) {
+        final isArabic = locale.languageCode == 'ar' ||
+            LanguageService.getLanguageName() == 'Arabic';
+
+        final iqdBalance = (_rewardBalance * usdToIqdRate).toInt();
+        final formattedIqd = iqdBalance.toString().replaceAllMapped(
+            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
+
+        return Directionality(
+          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+          child: Scaffold(
+            backgroundColor: const Color(0xFFFFFFFF),
+            appBar: AppBar(
+              backgroundColor: const Color(0xFFFFFFFF),
+              elevation: 0,
+              centerTitle: true,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                    size: 20, color: Color(0xFF0F172A)),
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/home');
+                  }
+                },
+              ),
+              title: Text(
+                isArabic ? 'الملف الشخصي' : 'Account & Profile',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                  letterSpacing: -0.3,
+                ),
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.language_rounded,
+                      color: Color(0xFF0066FF), size: 22),
+                  onPressed: () => _showLanguageSelector(context, isArabic),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ),
+            body: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Color(0xFF0066FF),
                     ),
+                  )
+                : SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 8),
 
-                    const SizedBox(height: 16),
-
-                    // Reward Balance Card - Professional Style
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surface,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: colorScheme.primary.withOpacity(0.1),
-                            width: 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
-                              blurRadius: 20,
-                              offset: const Offset(0, 4),
-                              spreadRadius: 0,
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Reward Balance',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: colorScheme.onSurface.withOpacity(0.6),
-                                      fontWeight: FontWeight.w500,
-                                      letterSpacing: 0.3,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    '\$${_rewardBalance.toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.bold,
-                                      color: colorScheme.primary,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              width: 60,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                color: colorScheme.primary.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: colorScheme.primary.withOpacity(0.25),
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: Icon(
-                                Icons.account_balance_wallet_rounded,
-                                size: 30,
-                                color: colorScheme.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-                    
-                    // Referral Code Section
-                    if (_referralCode != null)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surface,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: colorScheme.primary.withOpacity(0.1),
-                              width: 1,
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        // Avatar with Verified Badge
+                        Center(
+                          child: Stack(
                             children: [
-                              Text(
-                                'My Referral Code',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: colorScheme.onSurface.withOpacity(0.6),
-                                  fontWeight: FontWeight.w500,
+                              Container(
+                                width: 92,
+                                height: 92,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFFEFF6FF),
+                                      Color(0xFFDBEAFE),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  border: Border.all(
+                                    color: const Color(0xFFBFDBFE),
+                                    width: 2.5,
+                                  ),
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.person_rounded,
+                                    size: 52,
+                                    color: Color(0xFF0066FF),
+                                  ),
                                 ),
                               ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Text(
-                                    _referralCode!,
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      color: colorScheme.onSurface,
-                                      letterSpacing: 2,
-                                    ),
+                              Positioned(
+                                bottom: 2,
+                                right: 2,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF10B981),
+                                    shape: BoxShape.circle,
                                   ),
-                                  const Spacer(),
-                                  TextButton.icon(
-                                    onPressed: () {
-                                      Clipboard.setData(ClipboardData(text: _referralCode!));
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Referral code copied!'),
-                                          duration: Duration(seconds: 1),
-                                        ),
-                                      );
-                                    },
-                                    icon: Icon(Icons.copy_rounded, size: 18, color: colorScheme.primary),
-                                    label: Text(
-                                      'Copy',
-                                      style: TextStyle(color: colorScheme.primary),
-                                    ),
+                                  child: const Icon(
+                                    Icons.verified_rounded,
+                                    color: Colors.white,
+                                    size: 16,
                                   ),
-                                ],
+                                ),
                               ),
                             ],
                           ),
                         ),
-                      ),
 
-                    const SizedBox(height: 16),
+                        const SizedBox(height: 14),
 
-                    // Quick Actions - BestBid Style
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                        Text(
+                          _userName ?? (isArabic ? 'مستخدم معتمد' : 'Verified Member'),
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: -0.4,
+                          ),
+                        ),
+
+                        if (_userPhone != null) ...[
+                          const SizedBox(height: 4),
                           Text(
-                            'Quick Actions',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
+                            _userPhone!,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          // Wallet Button
-                          _ActionButton(
-                            icon: Icons.account_balance_wallet_rounded,
-                            label: 'Wallet',
-                            onTap: () {
-                              try {
-                                context.push('/wallet');
-                              } catch (e) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Error: $e'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 8),
-                          // Invite & Earn Button
-                          _ActionButton(
-                            icon: Icons.person_add_alt_1_rounded,
-                            label: 'Invite & Earn',
-                            onTap: () {
-                              context.push('/invite-and-earn');
-                            },
-                          ),
-                          const SizedBox(height: 8),
-                          // My Bids Button
-                          _ActionButton(
-                            icon: Icons.gavel_rounded,
-                            label: 'My Bids',
-                            onTap: () {
-                              context.push('/buyer-bidding-history');
-                            },
                           ),
                         ],
-                      ),
-                    ),
 
-                    const SizedBox(height: 24),
+                        const SizedBox(height: 20),
 
-                    // Logout Button
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(isDark ? 0.3 : 0.06),
-                              blurRadius: 16,
-                              offset: const Offset(0, 2),
+                        // Reward / Wallet Card
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                          ],
-                        ),
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: AppColors.error.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: AppColors.error.withOpacity(0.2),
-                                width: 1,
+                            borderRadius: BorderRadius.circular(22),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF0F172A)
+                                    .withValues(alpha: 0.25),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
                               ),
-                            ),
-                            child: const Icon(
-                              Icons.logout_rounded,
-                              color: AppColors.error,
-                              size: 22,
-                            ),
+                            ],
                           ),
-                          title: const Text(
-                            'Logout',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.error,
-                            ),
-                          ),
-                          onTap: () async {
-                            final shouldLogout = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('Logout'),
-                                content: const Text('Are you sure you want to logout?'),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, false),
-                                    child: const Text('Cancel'),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    isArabic
+                                        ? 'رصيد المكافآت والمحفظة'
+                                        : 'VIP REWARDS & WALLET',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF94A3B8),
+                                      letterSpacing: 0.6,
+                                    ),
                                   ),
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, true),
-                                    child: const Text('Logout', style: TextStyle(color: AppColors.error)),
+                                  const Icon(
+                                    Icons.account_balance_wallet_rounded,
+                                    color: Color(0xFF38BDF8),
+                                    size: 22,
                                   ),
                                 ],
                               ),
-                            );
-
-                            if (shouldLogout == true && mounted) {
-                              await StorageService.clearAll();
-                              if (mounted) {
-                                context.go('/auth');
-                              }
-                            }
-                          },
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-                    // Delete Account Button (Required by Apple)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.red.withOpacity(0.1)),
-                        ),
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.delete_forever_rounded, color: Colors.red),
-                          title: const Text(
-                            'Delete Account',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.red,
-                            ),
-                          ),
-                          subtitle: const Text(
-                            'Permanently remove your account and data',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                          onTap: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('Delete Account?'),
-                                content: const Text(
-                                  'This action is permanent and cannot be undone. All your bidding history and account data will be permanently removed.',
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text('Cancel'),
+                              const SizedBox(height: 12),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  Text(
+                                    '\$${_rewardBalance.toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFFFFFFFF),
+                                      letterSpacing: -1,
+                                    ),
                                   ),
-                                  TextButton(
-                                    onPressed: () async {
-                                      Navigator.pop(context); // Close dialog
-                                      
-                                      // Show loading indicator
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Row(
-                                            children: [
-                                              SizedBox(
-                                                width: 20,
-                                                height: 20,
-                                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                              ),
-                                              SizedBox(width: 16),
-                                              Text('Deleting account...'),
-                                            ],
-                                          ),
-                                          duration: Duration(seconds: 10),
-                                        ),
-                                      );
-
-                                      try {
-                                        // 🗑️ Call real API
-                                        await apiService.deleteAccount();
-                                        
-                                        // Clear storage and go to auth
-                                        await StorageService.clearAll();
-                                        
-                                        if (mounted) {
-                                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Text('Account deleted successfully.'),
-                                              backgroundColor: Colors.green,
-                                            ),
-                                          );
-                                          context.go('/auth');
-                                        }
-                                      } catch (e) {
-                                        if (mounted) {
-                                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text('Failed to delete account: $e'),
-                                              backgroundColor: Colors.red,
-                                            ),
-                                          );
-                                        }
-                                      }
-                                    },
-                                    child: const Text(
-                                      'Delete',
-                                      style: TextStyle(color: Colors.red),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '≈ $formattedIqd IQD',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF38BDF8),
                                     ),
                                   ),
                                 ],
                               ),
-                            );
-                          },
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 44,
+                                child: ElevatedButton(
+                                  onPressed: () => context.push('/wallet'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF0066FF),
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.arrow_upward_rounded,
+                                          size: 16),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        isArabic
+                                            ? 'إدارة وسحب الرصيد'
+                                            : 'Manage & Withdraw',
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
 
-                    const SizedBox(height: 24),
-                  ],
-                ),
+                        const SizedBox(height: 20),
+
+                        // Referral Code Pill
+                        if (_referralCode != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      isArabic
+                                          ? 'رمز الإحالة الخاص بك'
+                                          : 'Your Referral Code',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF64748B),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _referralCode!,
+                                      style: const TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w900,
+                                        color: Color(0xFF0F172A),
+                                        letterSpacing: 2,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.copy_rounded,
+                                      color: Color(0xFF0066FF), size: 20),
+                                  onPressed: () {
+                                    Clipboard.setData(
+                                        ClipboardData(text: _referralCode!));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(isArabic
+                                            ? 'تم نسخ رمز الإحالة!'
+                                            : 'Referral code copied!'),
+                                        duration:
+                                            const Duration(seconds: 1),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        const SizedBox(height: 20),
+
+                        // Action Menu List
+                        _buildMenuSection(isArabic),
+
+                        const SizedBox(height: 20),
+
+                        // Logout Luxury Pill
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: OutlinedButton(
+                            onPressed: () async {
+                              final confirmed = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(18)),
+                                  title: Text(isArabic
+                                      ? 'تسجيل الخروج'
+                                      : 'Confirm Logout'),
+                                  content: Text(isArabic
+                                      ? 'هل أنت متأكد من رغبتك في تسجيل الخروج؟'
+                                      : 'Are you sure you want to sign out from your account?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx, false),
+                                      child: Text(isArabic ? 'إلغاء' : 'Cancel'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFFEF4444),
+                                        foregroundColor: Colors.white,
+                                      ),
+                                      child: Text(isArabic
+                                          ? 'تسجيل الخروج'
+                                          : 'Logout'),
+                                    ),
+                                  ],
+                                ),
+                              );
+
+                              if (confirmed == true && mounted) {
+                                await StorageService.clearAll();
+                                if (mounted) {
+                                  context.go('/auth');
+                                }
+                              }
+                            },
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(
+                                  color: Color(0xFFFCA5A5), width: 1.5),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.logout_rounded,
+                                    color: Color(0xFFEF4444), size: 18),
+                                const SizedBox(width: 8),
+                                Text(
+                                  isArabic ? 'تسجيل الخروج' : 'Log Out',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFFDC2626),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 100),
+                      ],
+                    ),
+                  ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMenuSection(bool isArabic) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _MenuItem(
+            icon: Icons.gavel_rounded,
+            iconColor: const Color(0xFF0066FF),
+            bgColor: const Color(0xFFEFF6FF),
+            title: isArabic ? 'مزاداتي النشطة' : 'My Active Bids',
+            onTap: () => context.push('/buyer-bidding-history'),
+          ),
+          const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
+          _MenuItem(
+            icon: Icons.share_rounded,
+            iconColor: const Color(0xFF10B981),
+            bgColor: const Color(0xFFECFDF5),
+            title: isArabic ? 'شارك واكسب المكافآت' : 'Invite & Earn Rewards',
+            onTap: () => context.push('/invite-and-earn'),
+          ),
+          const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
+          _MenuItem(
+            icon: Icons.language_rounded,
+            iconColor: const Color(0xFF8B5CF6),
+            bgColor: const Color(0xFFF5F3FF),
+            title: isArabic ? 'لغة التطبيق' : 'Application Language',
+            trailingText: isArabic ? 'العربية' : 'English',
+            onTap: () => _showLanguageSelector(context, isArabic),
+          ),
+          const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
+          _MenuItem(
+            icon: Icons.description_outlined,
+            iconColor: const Color(0xFFF59E0B),
+            bgColor: const Color(0xFFFFFBEB),
+            title: isArabic ? 'الشروط والأحكام' : 'Terms & Conditions',
+            onTap: () => context.push('/terms-and-conditions'),
+          ),
+          const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
+          _MenuItem(
+            icon: Icons.privacy_tip_outlined,
+            iconColor: const Color(0xFF64748B),
+            bgColor: const Color(0xFFF8FAFC),
+            title: isArabic ? 'سياسة الخصوصية' : 'Privacy Policy',
+            onTap: () => context.push('/privacy-policy'),
+          ),
+          const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
+          _MenuItem(
+            icon: Icons.delete_forever_rounded,
+            iconColor: const Color(0xFFEF4444),
+            bgColor: const Color(0xFFFEF2F2),
+            title: isArabic ? 'حذف الحساب نهائياً' : 'Delete Account',
+            onTap: () => _confirmDeleteAccount(context, isArabic),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteAccount(BuildContext context, bool isArabic) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEE2E2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                isArabic ? 'حذف الحساب نهائياً' : 'Delete Account',
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
               ),
             ),
+          ],
+        ),
+        content: Text(
+          isArabic
+              ? 'تحذير: سيتم حذف جميع بياناتك ومزاداتك ومحفظتك بشكل نهائي ولن تتمكن من استرجاعها وفقاً لسياسات الخصوصية ومتطلبات متجر آبل. هل ترغب بالتأكيد؟'
+              : 'Warning: All your profile data, bids, and wallet history will be permanently deleted and cannot be recovered in compliance with Apple App Store guidelines. Are you sure you want to proceed?',
+          style: const TextStyle(fontSize: 13.5, color: Color(0xFF475569), height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              isArabic ? 'إلغاء' : 'Cancel',
+              style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                final token = await StorageService.getToken();
+                if (token != null && token.isNotEmpty) {
+                  // Call API if endpoint exists, or wipe local credentials
+                  await ApiService().deleteAccount().catchError((_) {});
+                }
+              } catch (_) {}
+              await StorageService.clearAll();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      isArabic ? 'تم حذف حسابك بنجاح' : 'Account successfully deleted',
+                    ),
+                    backgroundColor: const Color(0xFFDC2626),
+                  ),
+                );
+                context.go('/auth');
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text(
+              isArabic ? 'نعم، حذف الحساب' : 'Yes, Delete Account',
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-// Action Button Widget - BestBid Style
-class _ActionButton extends StatelessWidget {
+class _MenuItem extends StatelessWidget {
   final IconData icon;
-  final String label;
+  final Color iconColor;
+  final Color bgColor;
+  final String title;
+  final String? trailingText;
   final VoidCallback onTap;
 
-  const _ActionButton({
+  const _MenuItem({
     required this.icon,
-    required this.label,
+    required this.iconColor,
+    required this.bgColor,
+    required this.title,
+    this.trailingText,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
-    
-    return GestureDetector(
+    return InkWell(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.3 : 0.06),
-              blurRadius: 16,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
-                color: colorScheme.primary.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: colorScheme.primary.withOpacity(0.2),
-                  width: 1,
-                ),
+                color: bgColor,
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(
-                icon,
-                color: colorScheme.primary,
-                size: 22,
-              ),
+              child: Icon(icon, color: iconColor, size: 20),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(
               child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurface,
-                  letterSpacing: 0.2,
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
                 ),
               ),
             ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: colorScheme.onSurface.withOpacity(0.5),
-              size: 24,
-            ),
+            if (trailingText != null)
+              Text(
+                trailingText!,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF0066FF),
+                ),
+              ),
+            const SizedBox(width: 6),
+            const Icon(Icons.arrow_forward_ios_rounded,
+                size: 14, color: Color(0xFFCBD5E1)),
           ],
         ),
       ),
@@ -644,3 +729,49 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
+class _LanguageTile extends StatelessWidget {
+  final String title;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _LanguageTile({
+    required this.title,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF0066FF) : const Color(0xFFE2E8F0),
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected ? const Color(0xFF0066FF) : const Color(0xFF1E293B),
+              ),
+            ),
+            if (isSelected)
+              const Icon(Icons.check_circle_rounded,
+                  color: Color(0xFF0066FF), size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}

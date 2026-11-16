@@ -1,145 +1,159 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../theme/colors.dart';
+import '../services/language_service.dart';
 
-class PrivacyPolicyScreen extends StatelessWidget {
+class PrivacyPolicyScreen extends StatefulWidget {
   const PrivacyPolicyScreen({super.key});
 
   @override
+  State<PrivacyPolicyScreen> createState() => _PrivacyPolicyScreenState();
+}
+
+class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
+  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
+    final isAr = LanguageService.isArabic;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Privacy Policy'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: Color(0xFF0F172A)),
           onPressed: () => context.pop(),
         ),
+        title: Text(
+          isAr ? 'سياسة الخصوصية' : 'Privacy Policy',
+          style: const TextStyle(
+            color: Color(0xFF0F172A),
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextButton.icon(
+              onPressed: () {
+                final newLang = isAr ? 'English' : 'Arabic';
+                LanguageService.setLanguage(newLang);
+                setState(() {});
+              },
+              icon: const Icon(Icons.language, size: 16, color: Color(0xFF0284C7)),
+              label: Text(
+                isAr ? 'English' : 'العربية',
+                style: const TextStyle(
+                  color: Color(0xFF0284C7),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Privacy Policy',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              // Privacy Badge
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(Icons.shield_outlined, color: Color(0xFF10B981), size: 26),
                     ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Last Updated: ${DateTime.now().year}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isAr ? 'حماية بياناتك أولويتنا' : 'Your Data Security & Privacy',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            isAr ? 'تشفير كامل للبيانات والمعاملات المالية' : 'End-to-End Encryption & Zero Data Reselling',
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
+
               const SizedBox(height: 24),
-              
-              _buildSection(
-                context,
-                '1. Information We Collect',
-                'We collect information that you provide directly to us, including:\n\n• Phone number (for account verification)\n• Name and email address\n• Bidding history and preferences\n• Payment information (processed securely)\n• Device information and usage data\n• Referral codes and reward balances',
-                isDark,
+
+              _buildPolicySection(
+                title: isAr ? '1. البيانات التي نجمعها' : '1. Information We Collect',
+                content: isAr
+                    ? 'نقوم بجمع رقم الهاتف للتحقق الآمن (OTP)، وبيانات التوصيل (الاسم، المحافظة، والمنطقة) لتسليم المنتجات الفائزة، بالإضافة إلى سجل المزايدات والرصيد المالي.'
+                    : 'We collect phone numbers for secure OTP verification, delivery addresses for shipping won items, and transactional bidding history.',
               ),
-              
-              _buildSection(
-                context,
-                '2. How We Use Your Information',
-                'We use the information we collect to:\n\n• Provide, maintain, and improve our services\n• Process transactions and send related information\n• Send you technical notices and support messages\n• Respond to your comments and questions\n• Monitor and analyze trends and usage\n• Detect, prevent, and address technical issues\n• Personalize your experience',
-                isDark,
+
+              _buildPolicySection(
+                title: isAr ? '2. كيفية استخدام المعلومات' : '2. How We Use Information',
+                content: isAr
+                    ? 'تُستخدم بياناتك فقط لإدارة حسابك، تنفيذ المزايدات الحية، إرسال إشعارات الفوز والتحديثات، وتوصيل البضائع بأمان تام.'
+                    : 'Your information is used strictly to authenticate bids, manage digital wallet transactions, and dispatch winning orders via verified couriers.',
               ),
-              
-              _buildSection(
-                context,
-                '3. Information Sharing',
-                'We do not sell, trade, or rent your personal information to third parties. We may share your information only in the following circumstances:\n\n• With your consent\n• To comply with legal obligations\n• To protect our rights and safety\n• With service providers who assist us in operating our app (under strict confidentiality agreements)',
-                isDark,
+
+              _buildPolicySection(
+                title: isAr ? '3. عدم مشاركة البيانات' : '3. Zero Data Sharing',
+                content: isAr
+                    ? 'نحن لا نقوم ببيع أو تأجير أو مشاركة بيانات مستخدمينا مع أي طرف ثالث لأغراض إعلانية. بياناتك محفوظة في خوادم مشفرة بنكياً.'
+                    : 'We strictly never sell or lease your personal identity or financial records to third-party advertising companies.',
               ),
-              
-              _buildSection(
-                context,
-                '4. Data Security',
-                'We implement appropriate technical and organizational security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the internet is 100% secure.',
-                isDark,
+
+              _buildPolicySection(
+                title: isAr ? '4. حقوق المستخدم والتحكم' : '4. Your User Rights',
+                content: isAr
+                    ? 'يحق لك في أي وقت تعديل بياناتك الشخصية، تغيير لغة التطبيق، أو طلب حذف الحساب نهائياً عبر التواصل المباشر مع الدعم الفني.'
+                    : 'You retain complete ownership over your account, with the ability to modify profile settings or request full data deletion at any time.',
               ),
-              
-              _buildSection(
-                context,
-                '5. Your Rights',
-                'You have the right to:\n\n• Access your personal information\n• Correct inaccurate data\n• Request deletion of your account\n• Object to processing of your data\n• Data portability\n• Withdraw consent at any time',
-                isDark,
-              ),
-              
-              _buildSection(
-                context,
-                '6. Cookies and Tracking',
-                'We use cookies and similar tracking technologies to track activity on our app and store certain information. You can instruct your device to refuse all cookies, but this may limit your ability to use some features of our service.',
-                isDark,
-              ),
-              
-              _buildSection(
-                context,
-                '7. Third-Party Services',
-                'Our app may contain links to third-party websites or services. We are not responsible for the privacy practices of these third parties. We encourage you to read their privacy policies.',
-                isDark,
-              ),
-              
-              _buildSection(
-                context,
-                '8. Children\'s Privacy',
-                'Our services are not intended for children under the age of 18. We do not knowingly collect personal information from children. If you are a parent or guardian and believe your child has provided us with personal information, please contact us.',
-                isDark,
-              ),
-              
-              _buildSection(
-                context,
-                '9. Data Retention',
-                'We retain your personal information for as long as necessary to fulfill the purposes outlined in this Privacy Policy, unless a longer retention period is required or permitted by law.',
-                isDark,
-              ),
-              
-              _buildSection(
-                context,
-                '10. Changes to This Policy',
-                'We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last Updated" date.',
-                isDark,
-              ),
-              
-              _buildSection(
-                context,
-                '11. Contact Us',
-                'If you have any questions about this Privacy Policy, please contact us:\n\nEmail: privacy@iraqbid.com\nPhone: Support through app',
-                isDark,
-              ),
-              
-              const SizedBox(height: 32),
-              
-              // Accept Button
+
+              const SizedBox(height: 20),
+
+              // Close Button
               SizedBox(
-                width: double.infinity,
+                height: 52,
                 child: ElevatedButton(
                   onPressed: () => context.pop(),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    backgroundColor: const Color(0xFF0284C7),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: const Text('I Understand'),
+                  child: Text(
+                    isAr ? 'إغلاق' : 'Close',
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
                 ),
               ),
-              
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -147,26 +161,40 @@ class PrivacyPolicyScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSection(BuildContext context, String title, String content, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
+  Widget _buildPolicySection({required String title, required String content}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                ),
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             content,
-            style: TextStyle(
-              fontSize: 14,
-              height: 1.6,
-              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: Color(0xFF64748B),
+              height: 1.5,
             ),
           ),
         ],
@@ -174,4 +202,3 @@ class PrivacyPolicyScreen extends StatelessWidget {
     );
   }
 }
-
