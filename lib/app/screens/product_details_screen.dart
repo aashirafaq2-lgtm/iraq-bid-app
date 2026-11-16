@@ -24,7 +24,8 @@ class ProductDetailsScreen extends StatefulWidget {
   State<ProductDetailsScreen> createState() => _ProductDetailsScreenState();
 }
 
-class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
+class _ProductDetailsScreenState extends State<ProductDetailsScreen>
+    with SingleTickerProviderStateMixin {
   int _currentImageIndex = 0;
   bool _isLiked = false;
   ProductModel? _product;
@@ -42,6 +43,15 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   // Stepper Bid State
   int _bidAmount = 17;
   bool _isSubmittingBid = false;
+
+  // Winning status state & user's max bid
+  bool _isWinning = false;
+  double? _userMaxBid;
+
+  // Pulse & Confetti Glow Animation for Winning Card
+  late AnimationController _winningAnimController;
+  late Animation<double> _trophyScaleAnim;
+  late Animation<double> _glowPulseAnim;
 
   // Expandable sections state
   bool _isDescriptionExpanded = false;
@@ -75,6 +85,27 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   void initState() {
     super.initState();
     _pageController = PageController();
+
+    // Pulse & Trophy animation for Winning State
+    _winningAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+
+    _trophyScaleAnim = Tween<double>(begin: 1.0, end: 1.15).animate(
+      CurvedAnimation(
+        parent: _winningAnimController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    _glowPulseAnim = Tween<double>(begin: 0.96, end: 1.02).animate(
+      CurvedAnimation(
+        parent: _winningAnimController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
     _loadUserInfo();
     _loadProductData();
   }
@@ -82,6 +113,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    _winningAnimController.dispose();
     _autoSlideTimer?.cancel();
     _countdownTimer?.cancel();
     socketService.leaveProductRoom(widget.productId);
@@ -145,12 +177,25 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         // Calculate Remaining 24 Hours Countdown
         _calculateCountdown(prod);
 
+        // Check if current logged-in user is the winning (highest) bidder
+        bool isUserWinning = false;
+        double? userWinningMax = _userMaxBid;
+
+        if (_userId != null && _isLoggedIn) {
+          if (prod.highestBidderId == _userId) {
+            isUserWinning = true;
+            userWinningMax ??= (prod.currentBid ?? prod.startingPrice);
+          }
+        }
+
         setState(() {
           _product = prod;
           _isLiked = inWish;
           _bidAmount = nextBid;
           _similarProducts = allProds.where((p) => p.id != prod.id).toList();
           _isLoading = false;
+          _isWinning = isUserWinning;
+          _userMaxBid = userWinningMax;
         });
 
         _startAutoSlide();
@@ -315,16 +360,19 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       );
 
       if (mounted) {
+        final placedAmount = _bidAmount.toDouble();
         // Immediate local optimistic state update so price and stepper change instantly!
         setState(() {
           _isSubmittingBid = false;
+          _isWinning = true;
+          _userMaxBid = placedAmount;
           if (_product != null) {
             _product = _product!.copyWith(
-              currentBid: _bidAmount.toDouble(),
+              currentBid: placedAmount,
               totalBids: (_product!.totalBids ?? 0) + 1,
             );
           }
-          _bidAmount = _bidAmount + 1; // Auto advance stepper to next bid
+          _bidAmount = placedAmount.toInt() + 1; // Auto advance stepper to next bid
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -720,215 +768,498 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
           const SizedBox(height: 16),
 
-          // 4. 3-PANEL STATUS BAR (Time Left | Stepper Bid | Current Bid)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                // 1. Time Left Pill Card
-                Expanded(
-                  flex: 3,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0FDF4),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFDCFCE7)),
+          // 4. STATUS BAR & CONTROLS (Switches between Normal Bid Stepper and Winning State)
+          if (_isWinning) ...[
+            // 4A. WINNING STATE: 2-PANEL TOP (Time Left | Your Max Bid)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  // Time Left Pill Card
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFDCFCE7)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.access_time_rounded, size: 24, color: Color(0xFF16A34A)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isArabic ? 'الوقت المتبقي' : 'Time Left',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF15803D),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  formattedTime,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF16A34A),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.access_time_rounded, size: 22, color: Color(0xFF16A34A)),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                isArabic ? 'الوقت المتبقي' : 'Time Left',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
+                  ),
+
+                  const SizedBox(width: 10),
+
+                  // Your Max Bid Pill Card
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F9FF),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE0F2FE)),
+                      ),
+                      child: Row(
+                        children: [
+                          Transform.rotate(
+                            angle: -0.4,
+                            child: const Icon(Icons.label_rounded, size: 24, color: Color(0xFF0369A1)),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isArabic ? 'أقصى مزايدة لك' : 'Your Max Bid',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0284C7),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '\$${(_userMaxBid ?? currentBidVal.toDouble()).toInt()}',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // 4B. ANIMATED CELEBRATION WINNING BANNER (Trophy + Confetti + Pulse)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: AnimatedBuilder(
+                animation: _winningAnimController,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: _glowPulseAnim.value,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(0xFFDCFCE7),
+                            Color(0xFFF0FDF4),
+                            Color(0xFFDCFCE7),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFF86EFAC),
+                          width: 1.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF22C55E).withOpacity(0.18),
+                            blurRadius: 14,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Bouncing & Scaling Trophy Badge with Confetti Rays
+                          ScaleTransition(
+                            scale: _trophyScaleAnim,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                // Subtle celebration radiant glow
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: const Color(0xFF22C55E).withOpacity(0.12),
+                                  ),
+                                ),
+                                // Confetti sparkle dots
+                                Positioned(
+                                  top: 2,
+                                  left: 4,
+                                  child: Container(
+                                    width: 4,
+                                    height: 4,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Color(0xFFEAB308),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 4,
+                                  right: 6,
+                                  child: Container(
+                                    width: 3,
+                                    height: 3,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Color(0xFFEF4444),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 6,
+                                  left: 3,
+                                  child: Container(
+                                    width: 3.5,
+                                    height: 3.5,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Color(0xFF3B82F6),
+                                    ),
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.emoji_events_rounded,
+                                  size: 28,
                                   color: Color(0xFF15803D),
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                formattedTime,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFF16A34A),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                // 2. Interactive Bid Stepper (- $17 +)
-                Expanded(
-                  flex: 4,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF7ED),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFFFEDD5)),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // Minus Button
-                            GestureDetector(
-                              onTap: _decrementBid,
-                              child: Container(
-                                width: 26,
-                                height: 26,
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFFFFEDD5)),
-                                ),
-                                child: const Center(
-                                  child: Icon(Icons.remove, size: 16, color: Color(0xFFF97316)),
-                                ),
-                              ),
+                              ],
                             ),
-                            const SizedBox(width: 8),
-
-                            // Stepper Value
-                            Text(
-                              '\$$_bidAmount',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFFEA580C),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-
-                            // Plus Button
-                            GestureDetector(
-                              onTap: _incrementBid,
-                              child: Container(
-                                width: 26,
-                                height: 26,
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFFFFEDD5)),
-                                ),
-                                child: const Center(
-                                  child: Icon(Icons.add, size: 16, color: Color(0xFFF97316)),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          isArabic ? 'مبلغ مزايدتك' : 'Your Bid Amount',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF9A3412),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
 
-                const SizedBox(width: 8),
+                          const SizedBox(width: 12),
 
-                // 3. Current Bid Badge Card
-                Expanded(
-                  flex: 3,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFDBEAFE)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.gavel_rounded, size: 20, color: Color(0xFF0284C7)),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                isArabic ? 'أعلى مزايدة' : 'Current Bid',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF0284C7),
+                          // Text Info: "Winning!" & "You are currently the highest bidder."
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isArabic ? 'أنت الفائز حالياً!' : 'Winning!',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF15803D),
+                                    letterSpacing: -0.3,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '$currentBidVal \$',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFF0284C7),
+                                const SizedBox(height: 2),
+                                Text(
+                                  isArabic
+                                      ? 'أنت حالياً صاحب أعلى مزايدة لهذا المنتج.'
+                                      : 'You are currently the highest bidder.',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF166534),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 14),
-
-          // 5. PRIMARY ACTION BUTTON ("Place Bid")
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton.icon(
-                onPressed: _isSubmittingBid ? null : _handlePlaceBid,
-                icon: const Icon(Icons.gavel_rounded, size: 19, color: Colors.white),
-                label: _isSubmittingBid
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : Text(
-                        isArabic ? 'تقديم المزايدة' : 'Place Bid',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
+                        ],
                       ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF97316),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // 4C. DISABLED / GREYED OUT "Place Bid" BUTTON
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          isArabic
+                              ? 'أنت صاحب أعلى مزايدة بالفعل!'
+                              : 'You are already the highest bidder!',
+                        ),
+                        backgroundColor: const Color(0xFF16A34A),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.gavel_rounded, size: 19, color: Colors.white70),
+                  label: Text(
+                    isArabic ? 'تقديم المزايدة' : 'Place Bid',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFCBD5E1),
+                    disabledBackgroundColor: const Color(0xFFCBD5E1),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
+          ] else ...[
+            // 4. NORMAL 3-PANEL STATUS BAR (Time Left | Stepper Bid | Current Bid)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  // 1. Time Left Pill Card
+                  Expanded(
+                    flex: 3,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFDCFCE7)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.access_time_rounded, size: 22, color: Color(0xFF16A34A)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isArabic ? 'الوقت المتبقي' : 'Time Left',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF15803D),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  formattedTime,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF16A34A),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  // 2. Interactive Bid Stepper (- $17 +)
+                  Expanded(
+                    flex: 4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF7ED),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFFFEDD5)),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Minus Button
+                              GestureDetector(
+                                onTap: _decrementBid,
+                                child: Container(
+                                  width: 26,
+                                  height: 26,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: const Color(0xFFFFEDD5)),
+                                  ),
+                                  child: const Center(
+                                    child: Icon(Icons.remove, size: 16, color: Color(0xFFF97316)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+
+                              // Stepper Value
+                              Text(
+                                '\$$_bidAmount',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFFEA580C),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+
+                              // Plus Button
+                              GestureDetector(
+                                onTap: _incrementBid,
+                                child: Container(
+                                  width: 26,
+                                  height: 26,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: const Color(0xFFFFEDD5)),
+                                  ),
+                                  child: const Center(
+                                    child: Icon(Icons.add, size: 16, color: Color(0xFFF97316)),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            isArabic ? 'مبلغ مزايدتك' : 'Your Bid Amount',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF9A3412),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  // 3. Current Bid Badge Card
+                  Expanded(
+                    flex: 3,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFDBEAFE)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.gavel_rounded, size: 20, color: Color(0xFF0284C7)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isArabic ? 'أعلى مزايدة' : 'Current Bid',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0284C7),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '$currentBidVal \$',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF0284C7),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 14),
+
+            // 5. PRIMARY ACTIVE ACTION BUTTON ("Place Bid")
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: _isSubmittingBid ? null : _handlePlaceBid,
+                  icon: const Icon(Icons.gavel_rounded, size: 19, color: Colors.white),
+                  label: _isSubmittingBid
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(
+                          isArabic ? 'تقديم المزايدة' : 'Place Bid',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFF97316),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
 
           const SizedBox(height: 10),
 
