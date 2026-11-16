@@ -7,6 +7,7 @@ class ProductModel {
   final String title;
   final String? description;
   final String? imageUrl;
+  final List<String> images;
   final double startingPrice;
   final double? startingBid;
   final double? currentPrice;
@@ -37,6 +38,7 @@ class ProductModel {
     required this.title,
     this.description,
     this.imageUrl,
+    this.images = const [],
     required this.startingPrice,
     this.startingBid,
     this.currentPrice,
@@ -107,12 +109,31 @@ class ProductModel {
       }
     }
     
+    // Parse images array
+    List<String> parsedImages = [];
+    if (json['images'] != null) {
+      if (json['images'] is List) {
+        parsedImages = (json['images'] as List)
+            .map((e) => e.toString().trim())
+            .where((url) => url.isNotEmpty)
+            .toList();
+      } else if (json['images'] is String) {
+        try {
+          final decoded = jsonDecode(json['images'] as String);
+          if (decoded is List) {
+            parsedImages = decoded.map((e) => e.toString().trim()).where((url) => url.isNotEmpty).toList();
+          }
+        } catch (_) {}
+      }
+    }
+
     return ProductModel(
       id: json['id'] as int,
       sellerId: json['seller_id'] as int?,
       title: json['title'] as String? ?? 'Untitled Product',
       description: json['description'] as String?,
       imageUrl: json['image_url'] as String?,
+      images: parsedImages,
       startingPrice: startingPrice,
       startingBid: _parseDouble(json['starting_bid']),
       currentPrice: _parseDouble(json['current_price']),
@@ -173,6 +194,7 @@ class ProductModel {
     String? title,
     String? description,
     String? imageUrl,
+    List<String>? images,
     double? startingPrice,
     double? startingBid,
     double? currentPrice,
@@ -202,6 +224,7 @@ class ProductModel {
       title: title ?? this.title,
       description: description ?? this.description,
       imageUrl: imageUrl ?? this.imageUrl,
+      images: images ?? this.images,
       startingPrice: startingPrice ?? this.startingPrice,
       startingBid: startingBid ?? this.startingBid,
       currentPrice: currentPrice ?? this.currentPrice,
@@ -229,32 +252,38 @@ class ProductModel {
 
   // Helper method to get image URLs as list (with fixed URLs)
   List<String> get imageUrls {
-    if (imageUrl == null || imageUrl!.isEmpty) {
-      return [];
-    }
-    
-    try {
-      // Try to parse as JSON array
-      final parsed = jsonDecode(imageUrl!);
-      if (parsed is List) {
-        final urls = parsed.map((e) => e.toString()).where((url) => url.isNotEmpty).toList();
-        // Fix all URLs (convert relative to full URLs)
-        return ImageUrlHelper.fixImageUrls(urls).where((url) => url.isNotEmpty).toList();
+    final List<String> result = [];
+
+    // 1. First priority: images array
+    if (images.isNotEmpty) {
+      for (final img in images) {
+        if (img.trim().isNotEmpty) {
+          result.add(ImageUrlHelper.fixImageUrl(img.trim()));
+        }
       }
-    } catch (e) {
-      // If not JSON, treat as single URL string
-      final url = imageUrl!.trim();
-      if (url.isEmpty) return [];
-      // Fix URL (convert relative to full URL)
-      final fixedUrl = ImageUrlHelper.fixImageUrl(url);
-      return fixedUrl.isEmpty ? [] : [fixedUrl];
     }
-    
-    // Fallback: treat as single URL string
-    final url = imageUrl!.trim();
-    if (url.isEmpty) return [];
-    final fixedUrl = ImageUrlHelper.fixImageUrl(url);
-    return fixedUrl.isEmpty ? [] : [fixedUrl];
+
+    // 2. If images array had nothing, fallback to imageUrl
+    if (result.isEmpty && imageUrl != null && imageUrl!.trim().isNotEmpty) {
+      final trimmed = imageUrl!.trim();
+      try {
+        final parsed = jsonDecode(trimmed);
+        if (parsed is List) {
+          for (final item in parsed) {
+            final u = item.toString().trim();
+            if (u.isNotEmpty) {
+              result.add(ImageUrlHelper.fixImageUrl(u));
+            }
+          }
+        } else {
+          result.add(ImageUrlHelper.fixImageUrl(trimmed));
+        }
+      } catch (_) {
+        result.add(ImageUrlHelper.fixImageUrl(trimmed));
+      }
+    }
+
+    return result.where((u) => u.isNotEmpty).toList();
   }
 }
 
