@@ -522,7 +522,7 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          // 1. LUCKY WHEEL CARD (Matching Exact Reference Layout)
+          // 1. LUCKY WHEEL CARD
           Expanded(
             child: GestureDetector(
               onTap: () {
@@ -536,12 +536,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
               child: Container(
-                height: 110,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                height: 105,
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFFBEB),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFFDE68A), width: 1.2),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFFBEB), Color(0xFFFEF3C7)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFFD97706).withOpacity(0.08),
@@ -552,10 +556,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: Row(
                   children: [
-                    // Detailed Lucky Wheel Graphic with multi-colored radial slices
+                    // Wheel Visual Container
                     Container(
-                      width: 52,
-                      height: 52,
+                      width: 50,
+                      height: 50,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: const SweepGradient(
@@ -580,14 +584,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       child: Center(
                         child: Container(
-                          width: 18,
-                          height: 18,
+                          width: 16,
+                          height: 16,
                           decoration: const BoxDecoration(
                             color: Color(0xFFD97706),
                             shape: BoxShape.circle,
                           ),
                           child: const Center(
-                            child: Icon(Icons.star_rounded, color: Colors.white, size: 12),
+                            child: Icon(Icons.star_rounded, color: Colors.white, size: 10),
                           ),
                         ),
                       ),
@@ -600,56 +604,40 @@ class _HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Row(
-                            children: [
-                              Text(
-                                isArabic ? 'عجلة الحظ' : 'Lucky Wheel',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFF78350F),
-                                  letterSpacing: -0.2,
-                                ),
-                              ),
-                              const SizedBox(width: 2),
-                              const Icon(Icons.auto_awesome, size: 12, color: Color(0xFFF59E0B)),
-                            ],
+                          Text(
+                            isArabic ? 'عجلة الحظ' : 'Lucky Wheel',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF92400E),
+                            ),
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            isArabic ? 'دوّر يومياً واربح رصيد' : 'Spin Daily & Win Bid Credit',
-                            maxLines: 2,
+                            isArabic ? 'دوّر واربح رصيداً' : 'Spin Daily & Win Bid Credit',
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF92400E),
-                              height: 1.15,
+                              color: Color(0xFFB45309),
                             ),
                           ),
                           const SizedBox(height: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
                                 colors: [Color(0xFFEA580C), Color(0xFFF97316)],
                               ),
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFFEA580C).withOpacity(0.3),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               isArabic ? 'العب الآن >' : 'SPIN NOW >',
                               style: const TextStyle(
                                 fontSize: 9,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w800,
                                 color: Colors.white,
-                                letterSpacing: 0.3,
                               ),
                             ),
                           ),
@@ -664,7 +652,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const SizedBox(width: 10),
 
-          // 2. DAILY CHALLENGE CARD (Matching Exact Reference Layout)
+          // 2. DAILY CHALLENGE CARD
           Expanded(
             child: GestureDetector(
               onTap: () {
@@ -678,12 +666,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
               child: Container(
-                height: 110,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                height: 105,
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFAF5FF),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFE9D5FF), width: 1.2),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFF5F3FF), Color(0xFFEDE9FE)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFDDD6FE)),
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFF7C3AED).withOpacity(0.08),
@@ -694,47 +686,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: Stack(
                   children: [
-                    // Pill Badge at Top Right (Daily Prize)
-                    Positioned(
-                      top: 0,
-                      right: isArabic ? null : 0,
-                      left: isArabic ? 0 : null,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF7C3AED),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.card_giftcard, size: 9, color: Colors.white),
-                            const SizedBox(width: 3),
-                            Text(
-                              isArabic ? 'جائزة يومية' : 'Daily Prize',
-                              style: const TextStyle(
-                                fontSize: 8,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
                     Row(
                       children: [
-                        // Phone / Gift Trophy Graphic
+                        // Gift Visual Container
                         Container(
-                          width: 50,
-                          height: 52,
+                          width: 48,
+                          height: 48,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
                             gradient: const LinearGradient(
                               colors: [Color(0xFFC084FC), Color(0xFF7C3AED)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
                             ),
                             boxShadow: [
                               BoxShadow(
@@ -744,88 +705,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ],
                           ),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: const [
-                              Icon(Icons.phone_iphone_rounded, color: Colors.white, size: 28),
-                              Positioned(
-                                bottom: 6,
-                                right: 6,
-                                child: Icon(Icons.card_giftcard_rounded, color: Color(0xFFFDE047), size: 16),
-                              ),
-                            ],
+                          child: const Center(
+                            child: Icon(Icons.phone_iphone_rounded, color: Colors.white, size: 26),
                           ),
                         ),
-                        const SizedBox(width: 8),
-
-                        // Texts & Action Button
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const SizedBox(height: 12),
-                              Text(
-                                isArabic ? 'التحدي اليومي' : 'Daily Challenge',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFF581C87),
-                                  letterSpacing: -0.2,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                isArabic ? "ادعُ واكسب جائزة اليوم" : "Invite More Friends & Win Today's Prize",
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF6B21A8),
-                                  height: 1.15,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFF7C3AED), Color(0xFF9333EA)],
-                                  ),
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF7C3AED).withOpacity(0.3),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Text(
-                                  isArabic ? 'انضم الآن >' : 'JOIN NOW >',
-                                  style: const TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                    letterSpacing: 0.3,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
                         const SizedBox(width: 8),
 
                         // Texts & Action Button
