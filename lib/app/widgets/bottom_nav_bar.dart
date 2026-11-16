@@ -77,11 +77,11 @@ class BottomNavBar extends StatelessWidget {
                       },
                     ),
 
-                    // 4. Wins
+                    // 4. Wons
                     _BouncingBottomNavItem(
                       icon: Icons.check_circle_outline_rounded,
                       activeIcon: Icons.check_circle_rounded,
-                      label: isArabic ? 'الرابحة' : 'Wins',
+                      label: isArabic ? 'الرابحة' : 'Wons',
                       isActive: currentRoute == '/wins',
                       onTap: () {
                         context.go('/wins');

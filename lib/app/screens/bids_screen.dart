@@ -1,9 +1,14 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../services/api_service.dart';
 import '../services/language_service.dart';
+import '../services/storage_service.dart';
 import '../models/bid_model.dart';
 import '../utils/image_url_helper.dart';
+import '../widgets/bottom_nav_bar.dart';
 
 class BidsScreen extends StatefulWidget {
   const BidsScreen({super.key});
@@ -12,38 +17,42 @@ class BidsScreen extends StatefulWidget {
   State<BidsScreen> createState() => _BidsScreenState();
 }
 
-class _BidsScreenState extends State<BidsScreen> with TickerProviderStateMixin {
-  late AnimationController _headerController;
-  late AnimationController _listController;
-  late Animation<double> _headerFade;
-  late Animation<Offset> _headerSlide;
-  late Animation<double> _listFade;
-
+class _BidsScreenState extends State<BidsScreen> with SingleTickerProviderStateMixin {
   List<BidModel> _bids = [];
   bool _isLoading = true;
   String? _errorMessage;
-  String _selectedFilter = 'all';
 
-  static const double _kRate = 1520;
+  // Real-time countdown timer to update time left live
+  Timer? _tickerTimer;
+
+  // Pulse animation for Winning badges
+  late AnimationController _animController;
+  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
-    _headerController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 700));
-    _listController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900));
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
 
-    _headerFade =
-        CurvedAnimation(parent: _headerController, curve: Curves.easeOut);
-    _headerSlide = Tween<Offset>(
-            begin: const Offset(0, -0.3), end: Offset.zero)
-        .animate(
-            CurvedAnimation(parent: _headerController, curve: Curves.easeOut));
-    _listFade =
-        CurvedAnimation(parent: _listController, curve: Curves.easeOut);
+    _scaleAnimation = Tween<double>(begin: 0.98, end: 1.05).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
 
     _loadBids();
+
+    _tickerTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tickerTimer?.cancel();
+    _animController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadBids() async {
@@ -51,43 +60,27 @@ class _BidsScreenState extends State<BidsScreen> with TickerProviderStateMixin {
       _isLoading = true;
       _errorMessage = null;
     });
+
     try {
       final result = await apiService.getMyBids();
-      setState(() {
-        _bids = result;
-        _isLoading = false;
-      });
-      _headerController.forward();
-      Future.delayed(
-          const Duration(milliseconds: 200), () => _listController.forward());
+      if (mounted) {
+        setState(() {
+          _bids = result;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
-      _headerController.forward();
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
     }
-  }
-
-  List<BidModel> get _filteredBids {
-    if (_selectedFilter == 'all') return _bids;
-    return _bids
-        .where((b) =>
-            (b.auctionStatus ?? b.productStatus ?? '')
-                .toLowerCase() ==
-            _selectedFilter)
-        .toList();
   }
 
   bool get _isArabic => LanguageService.isArabic;
   String _t(String en, String ar) => _isArabic ? ar : en;
-
-  @override
-  void dispose() {
-    _headerController.dispose();
-    _listController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,145 +88,101 @@ class _BidsScreenState extends State<BidsScreen> with TickerProviderStateMixin {
       valueListenable: LanguageService.languageNotifier,
       builder: (context, _, __) {
         return Directionality(
-          textDirection:
-              _isArabic ? TextDirection.rtl : TextDirection.ltr,
+          textDirection: _isArabic ? TextDirection.rtl : TextDirection.ltr,
           child: Scaffold(
             backgroundColor: const Color(0xFFF8FAFC),
-            body: NestedScrollView(
-              headerSliverBuilder: (context, innerBoxIsScrolled) => [
-                _buildSliverAppBar(),
-              ],
-              body: _isLoading
-                  ? _buildLoader()
-                  : _errorMessage != null
-                      ? _buildError()
-                      : _filteredBids.isEmpty
-                          ? _buildEmpty()
-                          : _buildList(),
+            body: SafeArea(
+              child: Column(
+                children: [
+                  _buildHeader(),
+                  Expanded(
+                    child: _isLoading
+                        ? _buildLoader()
+                        : _errorMessage != null
+                            ? _buildError()
+                            : _bids.isEmpty
+                                ? _buildEmpty()
+                                : _buildList(),
+                  ),
+                ],
+              ),
             ),
+            bottomNavigationBar: const IraqBidBottomNavBar(currentRoute: '/bids'),
           ),
         );
       },
     );
   }
 
-  Widget _buildSliverAppBar() {
-    return SliverAppBar(
-      expandedHeight: 160,
-      floating: false,
-      pinned: true,
-      elevation: 0,
-      backgroundColor: const Color(0xFF0284C7),
-      flexibleSpace: FlexibleSpaceBar(
-        background: SlideTransition(
-          position: _headerSlide,
-          child: FadeTransition(
-            opacity: _headerFade,
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+  // Exact Header matching reference (Notification Bell on Left with red unread dot, Centered Title "Bids")
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      color: const Color(0xFFF8FAFC),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Notification Bell with unread red badge (Top Left)
+          Align(
+            alignment: _isArabic ? Alignment.centerRight : Alignment.centerLeft,
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                context.push('/notifications');
+              },
+              child: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-              ),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _t('My Bids', 'مزاياتي'),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 7),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withAlpha(38),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                  color: Colors.white.withAlpha(77)),
-                            ),
-                            child: Text(
-                              '${_bids.length} ${_t('Bids', 'مزاد')}',
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                        ],
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const Icon(
+                      Icons.notifications_none_rounded,
+                      size: 22,
+                      color: Color(0xFF0F172A),
+                    ),
+                    Positioned(
+                      top: 10,
+                      right: _isArabic ? null : 11,
+                      left: _isArabic ? 11 : null,
+                      child: Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEF4444),
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                      const SizedBox(height: 14),
-                      _buildFilterChips(),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildFilterChips() {
-    final filters = [
-      ('all', _t('All', 'الكل')),
-      ('active', _t('Active', 'نشط')),
-      ('won', _t('Won', 'فاز')),
-      ('outbid', _t('Outbid', 'تجاوزت')),
-      ('lost', _t('Lost', 'خسر')),
-    ];
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: filters.map((f) {
-          final isSelected = _selectedFilter == f.$1;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedFilter = f.$1),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 7),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? Colors.white
-                      : Colors.white.withAlpha(38),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isSelected
-                        ? Colors.white
-                        : Colors.white.withAlpha(77),
-                  ),
-                ),
-                child: Text(
-                  f.$2,
-                  style: TextStyle(
-                    color: isSelected
-                        ? const Color(0xFF0284C7)
-                        : Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
+          // Centered Header Title "Bids"
+          Text(
+            _t('Bids', 'المزايدات'),
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF0F172A),
+              letterSpacing: -0.4,
             ),
-          );
-        }).toList(),
+          ),
+        ],
       ),
     );
   }
@@ -242,7 +191,7 @@ class _BidsScreenState extends State<BidsScreen> with TickerProviderStateMixin {
     return const Center(
       child: CircularProgressIndicator(
         valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0284C7)),
-        strokeWidth: 3,
+        strokeWidth: 2.5,
       ),
     );
   }
@@ -250,46 +199,26 @@ class _BidsScreenState extends State<BidsScreen> with TickerProviderStateMixin {
   Widget _buildError() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(28),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
-                borderRadius: BorderRadius.circular(40),
-              ),
-              child: const Icon(Icons.wifi_off_rounded,
-                  color: Color(0xFFEF4444), size: 36),
-            ),
-            const SizedBox(height: 20),
+            const Icon(Icons.error_outline_rounded, size: 54, color: Color(0xFFEF4444)),
+            const SizedBox(height: 12),
             Text(
-              _t('Connection Error', 'خطأ في الاتصال'),
-              style: const TextStyle(
-                  fontSize: 20, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              _errorMessage ?? '',
-              style: const TextStyle(
-                  color: Color(0xFF64748B), fontSize: 13),
+              _errorMessage ?? _t('Failed to load bids', 'فشل تحميل المزايدات'),
               textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF64748B)),
             ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
+            const SizedBox(height: 16),
+            ElevatedButton(
               onPressed: _loadBids,
-              icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: Text(_t('Try Again', 'حاول مرة أخرى')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0284C7),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 28, vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
+              child: Text(_t('Retry', 'إعادة المحاولة')),
             ),
           ],
         ),
@@ -298,247 +227,292 @@ class _BidsScreenState extends State<BidsScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildEmpty() {
-    return FadeTransition(
-      opacity: _listFade,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(40),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFE0F2FE), Color(0xFFBAE6FD)],
-                  ),
-                  borderRadius: BorderRadius.circular(50),
-                ),
-                child: const Icon(Icons.gavel_rounded,
-                    color: Color(0xFF0284C7), size: 48),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 90,
+              height: 90,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE0F2FE),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(height: 24),
-              Text(
-                _t('No Bids Yet', 'لا مزايدات بعد'),
-                style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A)),
+              child: const Icon(Icons.gavel_rounded, color: Color(0xFF0284C7), size: 44),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              _t('No Bids Yet', 'لا توجد مزايدات بعد'),
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A),
               ),
-              const SizedBox(height: 10),
-              Text(
-                _t(
-                  'Start bidding on products to see your bid history here.',
-                  'ابدأ المزايدة على المنتجات لترى سجل مزاياتك هنا.',
-                ),
-                style: const TextStyle(
-                    color: Color(0xFF64748B), fontSize: 14, height: 1.5),
-                textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _t(
+                'Place bids on live auctions to see them here in real-time.',
+                'شارك في المزادات الحية لتراها هنا فورياً.',
               ),
-              const SizedBox(height: 28),
-              ElevatedButton.icon(
-                onPressed: () => context.go('/home'),
-                icon: const Icon(Icons.explore_rounded, size: 18),
-                label: Text(_t('Explore Auctions', 'استكشف المزادات')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0284C7),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 28, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                ),
+              style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, height: 1.4),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => context.go('/home'),
+              icon: const Icon(Icons.explore_rounded, size: 18),
+              label: Text(_t('Explore Auctions', 'استكشف المزادات')),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0284C7),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildList() {
-    final bids = _filteredBids;
-    return FadeTransition(
-      opacity: _listFade,
-      child: RefreshIndicator(
-        color: const Color(0xFF0284C7),
-        onRefresh: _loadBids,
-        child: ListView.builder(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-          itemCount: bids.length,
-          itemBuilder: (context, index) {
-            return TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: 1),
-              duration:
-                  Duration(milliseconds: 400 + index * 60),
-              curve: Curves.easeOut,
-              builder: (context, v, child) => Opacity(
-                opacity: v,
-                child: Transform.translate(
-                    offset: Offset(0, 30 * (1 - v)), child: child),
-              ),
-              child: _BidCard(
-                bid: bids[index],
-                isArabic: _isArabic,
-                rate: _kRate,
-                onTap: () => context
-                    .push('/product/${bids[index].productId}'),
-              ),
-            );
-          },
-        ),
+    return RefreshIndicator(
+      color: const Color(0xFF0284C7),
+      onRefresh: _loadBids,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 20),
+        itemCount: _bids.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 14),
+        itemBuilder: (context, index) {
+          final bid = _bids[index];
+          return _ExactBidCard(
+            bid: bid,
+            isArabic: _isArabic,
+            scaleAnim: _scaleAnimation,
+            onTap: () => context.push('/product/${bid.productId}'),
+          );
+        },
       ),
     );
   }
 }
 
-// ─── Bid Card ────────────────────────────────────────────────────────────────
+// ─── Exact Bid Card Matching 100% Reference Screen ──────────────────────────
 
-class _BidCard extends StatelessWidget {
+class _ExactBidCard extends StatelessWidget {
   final BidModel bid;
   final bool isArabic;
-  final double rate;
+  final Animation<double> scaleAnim;
   final VoidCallback onTap;
 
-  const _BidCard({
+  const _ExactBidCard({
     required this.bid,
     required this.isArabic,
-    required this.rate,
+    required this.scaleAnim,
     required this.onTap,
   });
 
   String _t(String en, String ar) => isArabic ? ar : en;
 
-  String get _statusKey =>
-      (bid.auctionStatus ?? bid.productStatus ?? '').toLowerCase();
+  // Calculate formatted countdown string (01h 11m 41s)
+  String _formatTimeLeft() {
+    final now = DateTime.now();
+    DateTime endTime;
 
-  Color get _statusColor {
-    if (_statusKey == 'won' || _statusKey == 'active') {
-      return const Color(0xFF10B981);
+    if (bid.auctionEndTime != null) {
+      endTime = bid.auctionEndTime!;
+    } else if (bid.hoursLeft != null && bid.hoursLeft! > 0) {
+      endTime = now.add(Duration(seconds: (bid.hoursLeft! * 3600).toInt()));
+    } else {
+      endTime = bid.createdAt.add(const Duration(hours: 24));
     }
-    if (_statusKey == 'outbid') return const Color(0xFFF59E0B);
-    if (_statusKey == 'lost') return const Color(0xFFEF4444);
-    return const Color(0xFF64748B);
-  }
 
-  String get _statusLabel {
-    if (_statusKey == 'won') return _t('Won', 'فاز');
-    if (_statusKey == 'active') return _t('Active', 'نشط');
-    if (_statusKey == 'outbid') return _t('Outbid', 'تجاوزت');
-    if (_statusKey == 'lost') return _t('Lost', 'خسر');
-    return _statusKey;
-  }
+    final diff = endTime.difference(now);
+    if (diff.isNegative || diff.inSeconds <= 0) {
+      return '00h 00m 00s';
+    }
 
-  IconData get _statusIcon {
-    if (_statusKey == 'won') return Icons.emoji_events_rounded;
-    if (_statusKey == 'active') return Icons.local_fire_department_rounded;
-    if (_statusKey == 'outbid') return Icons.trending_up_rounded;
-    if (_statusKey == 'lost') return Icons.close_rounded;
-    return Icons.info_outline_rounded;
+    final hours = diff.inHours.toString().padLeft(2, '0');
+    final minutes = (diff.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (diff.inSeconds % 60).toString().padLeft(2, '0');
+
+    return '${hours}h   ${minutes}m   ${seconds}s';
   }
 
   @override
   Widget build(BuildContext context) {
-    final amount = bid.amount;
-    final productTitle = bid.productTitle ?? _t('Auction Item', 'عنصر المزاد');
-    final imageUrl = bid.productImage != null
-        ? ImageUrlHelper.fixImageUrl(bid.productImage)
-        : null;
+    final title = bid.productTitle ?? _t('Auction Item', 'عنصر المزاد');
+    final imageUrl = bid.productImage != null ? ImageUrlHelper.fixImageUrl(bid.productImage!) : '';
+    final amountVal = bid.amount.toInt();
+    final timeLeftStr = _formatTimeLeft();
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
+        height: 122,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha(10),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Product Image
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                bottomLeft: Radius.circular(20),
-              ),
-              child: SizedBox(
-                width: 90,
-                height: 90,
-                child: imageUrl != null && imageUrl.isNotEmpty
-                    ? Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            _PlaceholderImage(),
-                      )
-                    : _PlaceholderImage(),
+            // Left Square Image with rounded corners
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  width: 106,
+                  height: 106,
+                  color: const Color(0xFFF8FAFC),
+                  child: imageUrl.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: imageUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          errorWidget: (_, __, ___) => const Center(
+                            child: Icon(Icons.image_not_supported_outlined, color: Color(0xFF94A3B8)),
+                          ),
+                        )
+                      : const Center(
+                          child: Icon(Icons.image_not_supported_outlined, color: Color(0xFF94A3B8)),
+                        ),
+                ),
               ),
             ),
-            // Info
+
+            // Right Info Content
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.fromLTRB(6, 10, 14, 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    // Product Title (2 lines max)
                     Text(
-                      productTitle,
-                      maxLines: 1,
+                      title,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF0F172A)),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.2,
+                        height: 1.25,
+                      ),
                     ),
-                    const SizedBox(height: 6),
+
+                    // Price & Winning Badge Row
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          '\$${amount.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF0284C7),
-                          ),
+                        // Current Price
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _t('Current Price', 'السعر الحالي'),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF94A3B8),
+                              ),
+                            ),
+                            const SizedBox(height: 1),
+                            Text(
+                              '\$ $amountVal',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF0284C7),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '(${(amount * rate).toStringAsFixed(0)} IQD)',
-                          style: const TextStyle(
-                              fontSize: 11,
-                              color: Color(0xFF64748B)),
+
+                        // Animated Winning Badge with Trophy
+                        ScaleTransition(
+                          scale: scaleAnim,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDCFCE7),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFF86EFAC), width: 1.0),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF22C55E).withOpacity(0.15),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.emoji_events_rounded,
+                                  size: 14,
+                                  color: Color(0xFF16A34A),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _t('Winning', 'فائز'),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF15803D),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+
+                    // Bottom Time Left Pill
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: _statusColor.withAlpha(26),
-                        borderRadius: BorderRadius.circular(20),
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(_statusIcon,
-                              color: _statusColor, size: 13),
-                          const SizedBox(width: 4),
-                          Text(
-                            _statusLabel,
-                            style: TextStyle(
-                                color: _statusColor,
+                          const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF16A34A)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              timeLeftStr,
+                              style: const TextStyle(
                                 fontSize: 11,
-                                fontWeight: FontWeight.w700),
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF16A34A),
+                                letterSpacing: 0.3,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -547,31 +521,9 @@ class _BidCard extends StatelessWidget {
                 ),
               ),
             ),
-            // Arrow
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: Icon(
-                isArabic
-                    ? Icons.chevron_left_rounded
-                    : Icons.chevron_right_rounded,
-                color: const Color(0xFFCBD5E1),
-                size: 22,
-              ),
-            ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _PlaceholderImage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFFF1F5F9),
-      child: const Icon(Icons.image_not_supported_outlined,
-          color: Color(0xFF94A3B8), size: 30),
     );
   }
 }
