@@ -8,6 +8,7 @@ import '../widgets/bottom_nav_bar.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/luxury_banner_carousel.dart';
 import '../widgets/luxury_product_card.dart';
+import '../widgets/gamification_cards.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,7 +17,9 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMixin<HomeScreen> {
+  @override
+  bool get wantKeepAlive => true;
   String _selectedCategory = 'All';
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -114,6 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final isArabic = LanguageService.isArabic;
 
     return Directionality(
@@ -154,13 +158,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         // 5. 5-Slide 3D Luxury Deals Banner Carousel
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: LuxuryBannerCarousel(),
+                          child: RepaintBoundary(child: LuxuryBannerCarousel()),
                         ),
 
                         const SizedBox(height: 14),
 
                         // 5b. Dual Gamification Cards ("Lucky Wheel" & "Daily Challenge")
-                        _buildGamificationFeatureCards(isArabic),
+                        RepaintBoundary(child: GamificationCardsWidget(isArabic: isArabic)),
 
                         const SizedBox(height: 18),
 
@@ -519,344 +523,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- DUAL GAMIFICATION CARDS ("Lucky Wheel" & "Daily Challenge") ---
-  Widget _buildGamificationFeatureCards(bool isArabic) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          // 1. LUCKY WHEEL CARD
-          Expanded(
-            child: GestureDetector(
-              onTap: () {
-                _showGamificationDialog(
-                  title: isArabic ? 'عجلة الحظ اليومية' : 'Lucky Wheel',
-                  subtitle: isArabic
-                      ? 'ميزة الأسبوع القادم: دوّر العجلة يومياً واربح رصيد مزايدة مجاني وهدايا حصرية!'
-                      : 'Next Week Update: Spin daily & win free bid credit and exclusive gifts!',
-                  icon: Icons.casino_rounded,
-                  color: const Color(0xFFEA580C),
-                );
-              },
-              child: Container(
-                height: 105,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFFFBEB), Color(0xFFFEF3C7)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFFDE68A)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFD97706).withOpacity(0.08),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    // Wheel Visual Container
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const SweepGradient(
-                          colors: [
-                            Color(0xFFEF4444),
-                            Color(0xFFFFFFFF),
-                            Color(0xFFEF4444),
-                            Color(0xFFFFFFFF),
-                            Color(0xFFEF4444),
-                            Color(0xFFFFFFFF),
-                            Color(0xFFEF4444),
-                          ],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFD97706).withOpacity(0.25),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                        border: Border.all(color: const Color(0xFFF59E0B), width: 2.5),
-                      ),
-                      child: Center(
-                        child: Container(
-                          width: 16,
-                          height: 16,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFD97706),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Center(
-                            child: Icon(Icons.star_rounded, color: Colors.white, size: 10),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
 
-                    // Texts & Action Button
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            isArabic ? 'عجلة الحظ' : 'Lucky Wheel',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF92400E),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            isArabic ? 'دوّر واربح رصيداً' : 'Spin Daily & Win Bid Credit',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFFB45309),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFFEA580C), Color(0xFFF97316)],
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              isArabic ? 'العب الآن >' : 'SPIN NOW >',
-                              style: const TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(width: 10),
-
-          // 2. DAILY CHALLENGE CARD
-          Expanded(
-            child: GestureDetector(
-              onTap: () {
-                _showGamificationDialog(
-                  title: isArabic ? 'التحدي اليومي' : 'Daily Challenge',
-                  subtitle: isArabic
-                      ? 'ميزة الأسبوع القادم: ادعُ أصدقاءك وأكمل المهام لتربح جوائز وهواتف ذكية!'
-                      : "Next Week Update: Invite more friends & win today's prize!",
-                  icon: Icons.card_giftcard_rounded,
-                  color: const Color(0xFF7C3AED),
-                );
-              },
-              child: Container(
-                height: 105,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFF5F3FF), Color(0xFFEDE9FE)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFDDD6FE)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF7C3AED).withOpacity(0.08),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Stack(
-                  children: [
-                    Row(
-                      children: [
-                        // Gift Visual Container
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFC084FC), Color(0xFF7C3AED)],
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF7C3AED).withOpacity(0.25),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: const Center(
-                            child: Icon(Icons.phone_iphone_rounded, color: Colors.white, size: 26),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-
-                        // Texts & Action Button
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                isArabic ? 'التحدي اليومي' : 'Daily Challenge',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFF5B21B6),
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                isArabic ? 'شارك واربح اليوم' : "Win Today's Prize",
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF6D28D9),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFF7C3AED), Color(0xFF6D28D9)],
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  isArabic ? 'انضم الآن >' : 'JOIN NOW >',
-                                  style: const TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // Top Right Floating "Daily Prize" Pill
-                    Positioned(
-                      top: 0,
-                      right: isArabic ? null : 0,
-                      left: isArabic ? 0 : null,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF7C3AED),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.wallet_giftcard_rounded, size: 8, color: Colors.white),
-                            const SizedBox(width: 2),
-                            Text(
-                              isArabic ? 'هدية' : 'Daily Prize',
-                              style: const TextStyle(
-                                fontSize: 7,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showGamificationDialog({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-  }) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 32),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: color,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: Text(
-                  LanguageService.isArabic ? 'حسناً، فهمت' : 'Got it!',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   // --- HORIZONTAL CATEGORY PILLS ---
   Widget _buildCategoryPills(bool isArabic) {

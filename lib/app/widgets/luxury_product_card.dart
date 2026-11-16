@@ -187,6 +187,10 @@ class _LuxuryProductCardState extends State<LuxuryProductCard> {
                     child: CachedNetworkImage(
                       imageUrl: widget.imageUrl,
                       fit: BoxFit.cover,
+                      memCacheWidth: 320,
+                      memCacheHeight: 320,
+                      maxWidthDiskCache: 600,
+                      maxHeightDiskCache: 600,
                       placeholder: (context, url) => Container(
                         color: const Color(0xFFF8FAFC),
                         child: const Center(
