@@ -9,7 +9,6 @@ import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../services/socket_service.dart';
 import '../services/language_service.dart';
-import 'place_bid_modal.dart';
 import '../widgets/auction_reminder_modal.dart';
 
 class ProductDetailsScreen extends StatefulWidget {
@@ -1411,11 +1410,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
               setState(() => _isDescriptionExpanded = !_isDescriptionExpanded);
             },
             child: Text(
-              p.description?.isNotEmpty == true
-                  ? p.description!
+              (p.description != null && p.description!.trim().isNotEmpty)
+                  ? p.description!.trim()
                   : (isArabic
-                      ? 'كاميرا طباعة فورية بدقة عالية تدعم الورق الحراري وذاكرة 32 جيجابايت مع ملحقات تصوير وشحن سريع ومؤثرات صور متعددة مناسبة للأطفال.'
-                      : 'Kids Instant Print Camera with 32GB memory card, thermal paper rolls, multiple cartoon frames, and rechargeable battery.'),
+                      ? 'لا يوجد وصف إضافي متوفر لهذا المنتج حالياً.'
+                      : 'No additional description provided for this item.'),
               style: const TextStyle(
                 fontSize: 13,
                 color: Color(0xFF475569),
