@@ -478,7 +478,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
     final p = _product!;
     final images = _getProductImages();
     final currentBidVal = (p.currentBid ?? p.startingPrice).toInt();
-    final realPrice = (p.buyNowPrice ?? (currentBidVal * 1.6)).toInt();
+    final realPrice = (p.originalRetailPrice != null && p.originalRetailPrice! > 0)
+        ? p.originalRetailPrice!.toInt()
+        : ((p.realPrice != null && p.realPrice! > 0)
+            ? p.realPrice!.toInt()
+            : (p.buyNowPrice ?? (currentBidVal * 1.6)).toInt());
     final buyNowPrice = (p.buyNowPrice ?? (currentBidVal * 1.5)).toInt();
 
     // Title translation
@@ -1271,18 +1275,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
               width: double.infinity,
               height: 48,
               child: OutlinedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        isArabic
-                            ? 'الشراء الفوري بقيمة \$$buyNowPrice غير متاح حالياً'
-                            : 'Instant Buy Now at \$$buyNowPrice is not enabled for this lot',
-                      ),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
+                onPressed: () => _showBuyNowModal(buyNowPrice, isArabic),
                 icon: const Icon(Icons.shopping_cart_outlined, size: 19, color: Color(0xFFF97316)),
                 label: Text(
                   isArabic ? 'شراء فوري \$$buyNowPrice' : 'Buy Now \$$buyNowPrice',
@@ -1705,6 +1698,258 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                   child: child,
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showBuyNowModal(int buyNowPrice, bool isArabic) {
+    if (!_isLoggedIn) {
+      context.push('/auth');
+      return;
+    }
+
+    final addressController = TextEditingController(text: 'Baghdad, Iraq');
+    final phoneController = TextEditingController();
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (modalCtx, setModalState) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    isArabic ? 'تأكيد الشراء الفوري' : 'Confirm Buy Now',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7ED),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFFED7AA)),
+                ),
+                child: Row(
+                  children: [
+                    if (_product?.imageUrl != null && _product!.imageUrl!.isNotEmpty)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: CachedNetworkImage(
+                          imageUrl: _product!.imageUrl!,
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _product?.title ?? 'Product',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Text(
+                                isArabic ? 'سعر الشراء الفوري: ' : 'Buy Now Price: ',
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF9A3412)),
+                              ),
+                              Text(
+                                '\$$buyNowPrice',
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFFEA580C)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                isArabic ? 'رقم الهاتف للتوصيل' : 'Delivery Phone Number',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  hintText: isArabic ? '07XXXXXXXX' : 'Phone number',
+                  prefixIcon: const Icon(Icons.phone_outlined, size: 18),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                isArabic ? 'عنوان التوصيل' : 'Delivery Address',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: addressController,
+                decoration: InputDecoration(
+                  hintText: isArabic ? 'المدينة، المنطقة، الشارع' : 'City, Area, Street',
+                  prefixIcon: const Icon(Icons.location_on_outlined, size: 18),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.payments_outlined, size: 16, color: Color(0xFF475569)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        isArabic ? 'الدفع عند الاستلام (نقداً)' : 'Payment Method: Cash on Delivery',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          setModalState(() => isSubmitting = true);
+                          try {
+                            final res = await apiService.buyNow(
+                              productId: int.tryParse(widget.productId) ?? (_product?.id ?? 0),
+                              shippingAddress: addressController.text.trim(),
+                              phone: phoneController.text.trim(),
+                            );
+                            if (mounted) Navigator.pop(ctx);
+                            HapticFeedback.heavyImpact();
+                            _showBuyNowSuccessDialog(res['data']?['orderNumber'] ?? 'Confirmed', isArabic);
+                            _loadProductData();
+                          } catch (e) {
+                            setModalState(() => isSubmitting = false);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(e.toString().replaceAll('Exception: ', '')),
+                                  backgroundColor: const Color(0xFFEF4444),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEA580C),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : Text(
+                          isArabic ? 'تأكيد الشراء الآن (\$$buyNowPrice)' : 'Confirm & Buy Now (\$$buyNowPrice)',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showBuyNowSuccessDialog(String orderNumber, bool isArabic) {
+    showDialog(
+      context: context,
+      builder: (dlgCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('🎉', style: TextStyle(fontSize: 44)),
+            const SizedBox(height: 10),
+            Text(
+              isArabic ? 'تم تأكيد طلبك بنجاح!' : 'Order Placed Successfully!',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isArabic
+                  ? 'رقم الطلب: $orderNumber\nتم إرسال تفاصيل الشراء إلى قسم التوصيل وسنتواصل معك قريباً.'
+                  : 'Order #: $orderNumber\nYour purchase is confirmed. Our delivery team will contact you shortly.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.4),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(dlgCtx);
+                  context.push('/wins');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0284C7),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(
+                  isArabic ? 'عرض طلباتي وفوزي' : 'View My Orders & Wins',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
           ],
         ),
       ),

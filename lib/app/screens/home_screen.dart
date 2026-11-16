@@ -639,6 +639,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             totalBids: p.totalBids ?? 0,
             endTime: p.auctionEndTime ?? DateTime.now().add(const Duration(hours: 24)),
             category: p.categoryName,
+            specialDescription: p.specialDescription,
             onTap: () => context.push('/product-details/${p.id}'),
           );
         },

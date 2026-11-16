@@ -13,6 +13,7 @@ class LuxuryProductCard extends StatefulWidget {
   final DateTime endTime;
   final String? category;
   final String? tag;
+  final String? specialDescription;
   final VoidCallback onTap;
 
   const LuxuryProductCard({
@@ -25,6 +26,7 @@ class LuxuryProductCard extends StatefulWidget {
     required this.endTime,
     this.category,
     this.tag,
+    this.specialDescription,
     required this.onTap,
   });
 
@@ -153,9 +155,9 @@ class _LuxuryProductCardState extends State<LuxuryProductCard> {
   Widget build(BuildContext context) {
     final isArabic = LanguageService.isArabic;
     
-    // Resolve display title and category according to language
-    final rawCat = widget.category ?? 'Luxury';
-    final displayCategory = isArabic ? (_arabicCategories[rawCat] ?? rawCat) : rawCat;
+    // Resolve display title and custom special description tag (if provided)
+    final customTag = widget.specialDescription ?? widget.tag;
+    final displayTag = (customTag != null && customTag.trim().isNotEmpty) ? customTag.trim() : null;
     final displayTitle = isArabic ? (_arabicTitles[widget.title] ?? widget.title) : widget.title;
 
     return GestureDetector(
@@ -209,38 +211,39 @@ class _LuxuryProductCardState extends State<LuxuryProductCard> {
                   ),
                 ),
 
-                // Category Tag
-                Positioned(
-                  top: 6,
-                  left: isArabic ? null : 6,
-                  right: isArabic ? 6 : null,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: _getTagColor(rawCat),
-                      borderRadius: BorderRadius.circular(6),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 3,
-                          offset: const Offset(0, 1),
+                // Special Description / Custom Badge Tag (Only shown if special description is manually written)
+                if (displayTag != null)
+                  Positioned(
+                    top: 6,
+                    left: isArabic ? null : 6,
+                    right: isArabic ? 6 : null,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _getTagColor(displayTag),
+                        borderRadius: BorderRadius.circular(6),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 3,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        displayTag,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w800,
+                          color: _getTagTextColor(displayTag),
+                          letterSpacing: -0.2,
                         ),
-                      ],
-                    ),
-                    child: Text(
-                      displayCategory,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'Cairo',
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w800,
-                        color: _getTagTextColor(rawCat),
-                        letterSpacing: -0.2,
                       ),
                     ),
                   ),
-                ),
 
                 // Wishlist Button
                 Positioned(

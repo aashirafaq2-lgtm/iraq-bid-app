@@ -30,6 +30,9 @@ class ProductModel {
   final List<String> defectImages;
 
   final double? buyNowPrice;
+  final double? originalRetailPrice;
+  final double? realPrice;
+  final String? specialDescription;
   final DateTime? createdAt;
 
   ProductModel({
@@ -60,6 +63,9 @@ class ProductModel {
     this.defectDetails,
     this.defectImages = const [],
     this.buyNowPrice,
+    this.originalRetailPrice,
+    this.realPrice,
+    this.specialDescription,
     this.createdAt,
   });
 
@@ -157,6 +163,9 @@ class ProductModel {
           ? List<String>.from((json['defect_images'] as List).map((e) => e.toString()))
           : const [],
       buyNowPrice: _parseDouble(json['buy_now_price'] ?? json['buyNowPrice']),
+      originalRetailPrice: _parseDouble(json['original_retail_price'] ?? json['originalRetailPrice'] ?? json['real_price'] ?? json['realPrice']),
+      realPrice: _parseDouble(json['real_price'] ?? json['realPrice'] ?? json['original_retail_price'] ?? json['originalRetailPrice']),
+      specialDescription: json['special_description'] as String?,
       createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) : null,
     );
   }

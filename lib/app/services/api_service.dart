@@ -1533,6 +1533,37 @@ class ApiService {
     }
   }
 
+  /// POST /api/products/:id/buy-now
+  /// Direct Instant Purchase
+  Future<Map<String, dynamic>> buyNow({
+    required int productId,
+    String? shippingAddress,
+    String? phone,
+    String? notes,
+  }) async {
+    try {
+      print('🚀 [buyNow] Initiating instant purchase for product #$productId');
+      final response = await _dio.post(
+        'products/$productId/buy-now',
+        data: {
+          'shipping_address': shippingAddress,
+          'phone': phone,
+          'notes': notes,
+        },
+      );
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      print('❌ [buyNow] Error: $e');
+      if (e is DioException && e.response?.data != null) {
+        final err = e.response!.data;
+        if (err is Map && err['message'] != null) {
+          throw Exception(err['message']);
+        }
+      }
+      throw Exception('Failed to complete purchase. Please check your connection.');
+    }
+  }
+
   /// GET /api/bids/:productId
   /// ✅ LIVE: Connects to backend database
   Future<List<BidModel>> getBidsByProduct(int productId) async {
