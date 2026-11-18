@@ -1540,15 +1540,17 @@ class ApiService {
     String? shippingAddress,
     String? phone,
     String? notes,
+    String? couponCode,
   }) async {
     try {
-      print('🚀 [buyNow] Initiating instant purchase for product #$productId');
+      print('🚀 [buyNow] Initiating instant purchase for product #$productId (Coupon: $couponCode)');
       final response = await _dio.post(
         'products/$productId/buy-now',
         data: {
           'shipping_address': shippingAddress,
           'phone': phone,
           'notes': notes,
+          'coupon_code': couponCode,
         },
       );
       return response.data as Map<String, dynamic>;
@@ -1561,6 +1563,62 @@ class ApiService {
         }
       }
       throw Exception('Failed to complete purchase. Please check your connection.');
+    }
+  }
+
+  /// POST /api/coupons/validate
+  /// Validate influencer promotional coupon and compute preview discount
+  Future<Map<String, dynamic>> validateCoupon({
+    required String couponCode,
+    required double amount,
+    int? productId,
+  }) async {
+    try {
+      final response = await _dio.post(
+        'coupons/validate',
+        data: {
+          'coupon_code': couponCode,
+          'amount': amount,
+          'product_id': productId,
+        },
+      );
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      if (e is DioException && e.response?.data != null) {
+        final err = e.response!.data;
+        if (err is Map && err['message'] != null) {
+          throw Exception(err['message']);
+        }
+      }
+      throw Exception('Invalid or expired coupon code');
+    }
+  }
+
+  /// POST /api/coupons/apply
+  /// Apply coupon to won auction order or product
+  Future<Map<String, dynamic>> applyCoupon({
+    required String couponCode,
+    int? productId,
+    int? orderId,
+  }) async {
+    try {
+      final response = await _dio.post(
+        'coupons/apply',
+        data: {
+          'coupon_code': couponCode,
+          'product_id': productId,
+          'order_id': orderId,
+        },
+      );
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      if (e is DioException && e.response?.data != null) {
+        final err = e.response!.data;
+        if (err is Map && err['message'] != null) {
+          throw Exception(err['message']);
+        }
+      }
+      throw Exception('Failed to apply coupon');
     }
   }
 

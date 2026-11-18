@@ -326,9 +326,9 @@ class _ExactWonCard extends StatelessWidget {
 
   String _t(String en, String ar) => isArabic ? ar : en;
 
-  // Format date: 2024/10/16 - 15:23
+  // Format date: 2026/11/16 - 03:00
   String _formatDate(dynamic dateVal) {
-    if (dateVal == null) return '2024/10/16 - 15:23';
+    if (dateVal == null) return '2026/11/16 - 03:00';
     try {
       DateTime dt;
       if (dateVal is DateTime) {
@@ -372,9 +372,23 @@ class _ExactWonCard extends StatelessWidget {
     final rawImage = (bid['product_image'] ?? bid['image_url'] ?? bid['imageUrl'] ?? '').toString();
     final imageUrl = rawImage.isNotEmpty ? ImageUrlHelper.fixImageUrl(rawImage) : '';
     
-    // Amount extraction
-    final amountNum = bid['amount'] ?? bid['current_highest_bid'] ?? 17;
-    final amountVal = (amountNum is num) ? amountNum.toInt() : int.tryParse(amountNum.toString()) ?? 17;
+    // Amount extraction & Coupon Calculation
+    final rawOriginal = bid['original_amount'] ?? bid['amount'] ?? bid['current_highest_bid'] ?? 17;
+    final originalVal = (rawOriginal is num) ? rawOriginal.toDouble() : double.tryParse(rawOriginal.toString()) ?? 17.0;
+
+    final couponCode = bid['coupon_code']?.toString();
+    final hasCoupon = couponCode != null && couponCode.trim().isNotEmpty && couponCode != 'null';
+
+    final rawDiscount = bid['discount_amount'] ?? 0;
+    final discountVal = (rawDiscount is num) ? rawDiscount.toDouble() : double.tryParse(rawDiscount.toString()) ?? 0.0;
+
+    final rawFinal = bid['final_price'] ?? (hasCoupon && discountVal > 0 ? (originalVal - discountVal) : originalVal);
+    final finalPriceVal = (rawFinal is num) ? rawFinal.toDouble() : double.tryParse(rawFinal.toString()) ?? originalVal;
+
+    // Discount percentage calculation
+    final discountPercent = (hasCoupon && originalVal > 0 && discountVal > 0)
+        ? ((discountVal / originalVal) * 100).round()
+        : (hasCoupon ? 10 : 0);
 
     // Total bids count (default "2 bids" like reference)
     final totalBidsCount = bid['total_bids'] ?? 2;
@@ -386,9 +400,8 @@ class _ExactWonCard extends StatelessWidget {
     final categoryStr = _inferCategory(title);
 
     // Status Pill: "Pending" (orange) or "Delivered" (green)
-    // Alternate or check backend order status
     final statusStr = (bid['order_status'] ?? bid['status'] ?? '').toString().toLowerCase();
-    final isDelivered = statusStr == 'delivered' || statusStr == 'completed' || index >= 2;
+    final isDelivered = statusStr == 'delivered' || statusStr == 'completed';
 
     return GestureDetector(
       onTap: () {
@@ -396,7 +409,7 @@ class _ExactWonCard extends StatelessWidget {
         onTap();
       },
       child: Container(
-        height: 130,
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),
@@ -410,179 +423,299 @@ class _ExactWonCard extends StatelessWidget {
           ],
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Left Square Product Image
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  width: 114,
-                  height: 114,
-                  color: const Color(0xFFF8FAFC),
-                  child: imageUrl.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: imageUrl,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => const Center(
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          errorWidget: (_, __, ___) => const Center(
-                            child: Icon(Icons.image_not_supported_outlined, color: Color(0xFF94A3B8)),
-                          ),
-                        )
-                      : const Center(
+            // Left Square Product Image (Clean 110x110)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                width: 106,
+                height: 106,
+                color: const Color(0xFFF8FAFC),
+                child: imageUrl.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        errorWidget: (_, __, ___) => const Center(
                           child: Icon(Icons.image_not_supported_outlined, color: Color(0xFF94A3B8)),
                         ),
-                ),
+                      )
+                    : const Center(
+                        child: Icon(Icons.image_not_supported_outlined, color: Color(0xFF94A3B8)),
+                      ),
               ),
             ),
 
+            const SizedBox(width: 12),
+
             // Right Info Content
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(6, 10, 12, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Top Row: Category Blue Pill & 3-Dots Menu (...)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Category pill
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 1. Top Row: Category Blue Pill & 3-Dots Menu (...)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          categoryStr,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF3B82F6),
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.more_horiz_rounded,
+                        size: 18,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 4),
+
+                  // 2. Product Title (Max 2 lines, tight)
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                      letterSpacing: -0.2,
+                      height: 1.25,
+                    ),
+                  ),
+
+                  const SizedBox(height: 2),
+
+                  // 3. Bids count: "2 bids"
+                  Text(
+                    '$totalBidsCount ${_t("bids", "مزايدات")}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF94A3B8),
+                    ),
+                  ),
+
+                  const SizedBox(height: 4),
+
+                  // 4. Price & Discount Row (Matching reference screenshot 100%)
+                  Row(
+                    children: [
+                      if (hasCoupon && discountVal > 0) ...[
+                        // Strikethrough Original Price: e.g. $ 381
+                        Text(
+                          '\$ ${originalVal.toInt()}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF94A3B8),
+                            decoration: TextDecoration.lineThrough,
+                            decorationColor: Color(0xFF94A3B8),
+                            decorationThickness: 2,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+
+                        // Discounted Green Price: e.g. $ 342.90
+                        Text(
+                          '\$ ${finalPriceVal.toStringAsFixed(finalPriceVal.truncateToDouble() == finalPriceVal ? 0 : 2)}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF16A34A),
+                          ),
+                        ),
+                        const Spacer(),
+
+                        // Green % OFF Badge: e.g. 10% OFF
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEFF6FF),
+                            color: const Color(0xFFDCFCE7),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            categoryStr,
+                            '$discountPercent% OFF',
                             style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF3B82F6),
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF16A34A),
                             ),
                           ),
                         ),
-
-                        // 3 horizontal dots icon
-                        const Icon(
-                          Icons.more_horiz_rounded,
-                          size: 18,
-                          color: Color(0xFF94A3B8),
+                      ] else ...[
+                        // Normal Price (No coupon used): e.g. $ 621
+                        Text(
+                          '\$ ${originalVal.toInt()}',
+                          style: const TextStyle(
+                            fontSize: 16.5,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF16A34A),
+                          ),
                         ),
                       ],
-                    ),
+                    ],
+                  ),
 
-                    // Product Title (2 lines)
-                    Text(
-                      title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF0F172A),
-                        letterSpacing: -0.2,
-                        height: 1.25,
-                      ),
-                    ),
+                  const SizedBox(height: 5),
 
-                    // Bids count: "2 bids"
-                    Text(
-                      '$totalBidsCount ${_t("bids", "مزايدات")}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                  // 5. Coupons Ticket Row (Matching reference screenshot 100%)
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.confirmation_number_outlined,
+                        size: 14,
                         color: Color(0xFF94A3B8),
                       ),
-                    ),
-
-                    // Price
-                    Text(
-                      '\$ $amountVal',
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFF16A34A),
+                      const SizedBox(width: 4),
+                      Text(
+                        _t('Coupons', 'الكوبونات'),
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF334155),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
 
-                    // Bottom Row: Date on Left, Status Pill (Pending / Delivered) on Right
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Date with small calendar icon
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.calendar_today_outlined,
-                              size: 11,
+                      if (hasCoupon)
+                        // Purple/Lavender Pill with Coupon Code (e.g. AHMED10)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF3E8FF),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            couponCode!,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF9333EA),
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        )
+                      else
+                        // Empty Dash Pill (Grey)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            '—',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
                               color: Color(0xFF94A3B8),
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              dateStr,
-                              style: const TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF94A3B8),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
+                    ],
+                  ),
 
-                        // Status Badge
-                        if (isDelivered)
-                          // Green Delivered Badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF0FDF4),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFDCFCE7)),
+                  const SizedBox(height: 6),
+
+                  // 6. Bottom Row: Date & Status Pill (Pending / Delivered)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Date with small calendar icon
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.calendar_today_outlined,
+                            size: 11,
+                            color: Color(0xFF94A3B8),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            dateStr,
+                            style: const TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF94A3B8),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.check_circle_outline_rounded, size: 12, color: Color(0xFF16A34A)),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _t('Delivered', 'تم التوصيل'),
-                                  style: const TextStyle(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF16A34A),
-                                  ),
+                          ),
+                        ],
+                      ),
+
+                      // Status Badge (Pending / Delivered)
+                      if (isDelivered)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0FDF4),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFDCFCE7)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.check_circle_outline_rounded, size: 12, color: Color(0xFF16A34A)),
+                              const SizedBox(width: 4),
+                              Text(
+                                _t('Delivered', 'تم التوصيل'),
+                                style: const TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF16A34A),
                                 ),
-                              ],
-                            ),
-                          )
-                        else
-                          // Orange Pending Badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFF7ED),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFFFEDD5)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.access_time_rounded, size: 12, color: Color(0xFFEA580C)),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _t('Pending', 'قيد الانتظار'),
-                                  style: const TextStyle(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFFEA580C),
-                                  ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF7ED),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFFFEDD5)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.access_time_rounded, size: 12, color: Color(0xFFEA580C)),
+                              const SizedBox(width: 4),
+                              Text(
+                                _t('Pending', 'قيد الانتظار'),
+                                style: const TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFFEA580C),
                                 ),
-                              ],
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
                             ),
                           ),
                       ],
