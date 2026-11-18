@@ -146,6 +146,15 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
+        if (e is DioException && e.response?.statusCode == 404) {
+          final resData = e.response?.data;
+          final isUserNotFound = resData is Map && (resData['code'] == 'USER_NOT_FOUND' || (resData['message']?.toString().contains("account") ?? false));
+          if (isUserNotFound) {
+            _showNoAccountDialog();
+            return;
+          }
+        }
+
         String errorMsg = AppLocalizations.of(context)?.failedToSendOtp ?? 'Failed to send OTP';
         if (NetworkUtils.isNetworkError(e)) {
           errorMsg = NetworkUtils.getNetworkErrorMessage(e);
@@ -155,6 +164,82 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
         _showError('Authentication Error', errorMsg);
       }
     }
+  }
+
+  void _showNoAccountDialog() {
+    final isAr = LanguageService.isArabic;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: Colors.white,
+          titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+          actionsPadding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.person_off_rounded, color: Color(0xFFEF4444), size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  isAr ? 'لم يتم العثور على حساب!' : 'No Account Found!',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            isAr
+                ? 'ليس لديك حساب حتى الآن. يرجى إنشاء حساب جديد للمتابعة.'
+                : 'You don’t have an account yet. Please create an account to continue.',
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF475569),
+              height: 1.5,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(
+                isAr ? 'إلغاء' : 'Cancel',
+                style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                context.go('/signup');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1E88E5),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+              child: Text(
+                isAr ? 'إنشاء حساب جديد' : 'Create Account',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   String get _enteredOTP => _otpControllers.map((c) => c.text).join();
@@ -232,7 +317,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
         final isNewUser = name == null || name.isEmpty;
 
         if (isNewUser) {
-          context.go('/role-selection?mode=signup');
+          context.go('/signup');
         } else {
           if (role == 'seller_products') {
             context.go('/seller-dashboard');
@@ -652,7 +737,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
             ),
             const SizedBox(width: 6),
             GestureDetector(
-              onTap: () => context.push('/role-selection?mode=signup'),
+              onTap: () => context.push('/signup'),
               child: Text(
                 isAr ? 'إنشاء حساب جديد' : 'Register Now',
                 style: const TextStyle(

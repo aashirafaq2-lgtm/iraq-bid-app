@@ -32,6 +32,7 @@ class ProductModel {
   final double? buyNowPrice;
   final double? originalRetailPrice;
   final double? realPrice;
+  final String? originalBarcode;
   final String? specialDescription;
   final DateTime? createdAt;
 
@@ -65,6 +66,7 @@ class ProductModel {
     this.buyNowPrice,
     this.originalRetailPrice,
     this.realPrice,
+    this.originalBarcode,
     this.specialDescription,
     this.createdAt,
   });
@@ -165,6 +167,7 @@ class ProductModel {
       buyNowPrice: _parseDouble(json['buy_now_price'] ?? json['buyNowPrice']),
       originalRetailPrice: _parseDouble(json['original_retail_price'] ?? json['originalRetailPrice'] ?? json['real_price'] ?? json['realPrice']),
       realPrice: _parseDouble(json['real_price'] ?? json['realPrice'] ?? json['original_retail_price'] ?? json['originalRetailPrice']),
+      originalBarcode: json['barcode'] as String? ?? json['item_barcode'] as String?,
       specialDescription: json['special_description'] as String?,
       createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) : null,
     );
@@ -194,6 +197,7 @@ class ProductModel {
       'hours_left': hoursLeft,
       'auction_status': auctionStatus,
       'condition': condition,
+      'barcode': originalBarcode,
     };
   }
 
