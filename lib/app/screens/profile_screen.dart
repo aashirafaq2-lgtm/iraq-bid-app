@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../services/storage_service.dart';
 import '../services/api_service.dart';
 import '../services/language_service.dart';
-import '../widgets/bottom_nav_bar.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -17,10 +16,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _userName;
   String? _userPhone;
   String? _referralCode;
-  double _rewardBalance = 0.0;
   bool _isLoading = true;
-
-  static const int usdToIqdRate = 1520;
 
   @override
   void initState() {
@@ -40,7 +36,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _userName = user.name;
           _userPhone = user.phone;
           _referralCode = user.referralCode;
-          _rewardBalance = balance;
           _isLoading = false;
         });
       }
@@ -52,10 +47,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (mounted) {
         setState(() {
-          _userName = name ?? 'VIP User';
+          _userName = name ?? 'Member';
           _userPhone = phone;
           _referralCode = ref;
-          _rewardBalance = balance;
           _isLoading = false;
         });
       }
@@ -128,10 +122,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final isArabic = locale.languageCode == 'ar' ||
             LanguageService.getLanguageName() == 'Arabic';
 
-        final iqdBalance = (_rewardBalance * usdToIqdRate).toInt();
-        final formattedIqd = iqdBalance.toString().replaceAllMapped(
-            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
-
         return Directionality(
           textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
           child: Scaffold(
@@ -163,7 +153,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               actions: [
                 IconButton(
                   icon: const Icon(Icons.language_rounded,
-                      color: Color(0xFF0066FF), size: 22),
+                      color: Color(0xFF0284C7), size: 22),
                   onPressed: () => _showLanguageSelector(context, isArabic),
                 ),
                 const SizedBox(width: 8),
@@ -173,7 +163,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ? const Center(
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
-                      color: Color(0xFF0066FF),
+                      color: Color(0xFF0284C7),
                     ),
                   )
                 : SingleChildScrollView(
@@ -196,14 +186,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   shape: BoxShape.circle,
                                   gradient: const LinearGradient(
                                     colors: [
-                                      Color(0xFFEFF6FF),
-                                      Color(0xFFDBEAFE),
+                                      Color(0xFFE0F2FE),
+                                      Color(0xFFBAE6FD),
                                     ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
                                   border: Border.all(
-                                    color: const Color(0xFFBFDBFE),
+                                    color: const Color(0xFF7DD3FC),
                                     width: 2.5,
                                   ),
                                 ),
@@ -211,7 +201,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   child: Icon(
                                     Icons.person_rounded,
                                     size: 52,
-                                    color: Color(0xFF0066FF),
+                                    color: Color(0xFF0284C7),
                                   ),
                                 ),
                               ),
@@ -261,115 +251,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                         const SizedBox(height: 20),
 
-                        // Reward / Wallet Card
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(22),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF0F172A)
-                                    .withValues(alpha: 0.25),
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    isArabic
-                                        ? 'رصيد المكافآت والمحفظة'
-                                        : 'VIP REWARDS & WALLET',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                      color: Color(0xFF94A3B8),
-                                      letterSpacing: 0.6,
-                                    ),
-                                  ),
-                                  const Icon(
-                                    Icons.account_balance_wallet_rounded,
-                                    color: Color(0xFF38BDF8),
-                                    size: 22,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.baseline,
-                                textBaseline: TextBaseline.alphabetic,
-                                children: [
-                                  Text(
-                                    '\$${_rewardBalance.toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.w900,
-                                      color: Color(0xFFFFFFFF),
-                                      letterSpacing: -1,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '≈ $formattedIqd IQD',
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF38BDF8),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              SizedBox(
-                                width: double.infinity,
-                                height: 44,
-                                child: ElevatedButton(
-                                  onPressed: () => context.push('/wallet'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF0066FF),
-                                    foregroundColor: Colors.white,
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(Icons.arrow_upward_rounded,
-                                          size: 16),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        isArabic
-                                            ? 'إدارة وسحب الرصيد'
-                                            : 'Manage & Withdraw',
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
-
                         // Referral Code Pill
                         if (_referralCode != null)
                           Container(
@@ -412,7 +293,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.copy_rounded,
-                                      color: Color(0xFF0066FF), size: 20),
+                                      color: Color(0xFF0284C7), size: 20),
                                   onPressed: () {
                                     Clipboard.setData(
                                         ClipboardData(text: _referralCode!));
@@ -536,24 +417,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           _MenuItem(
             icon: Icons.gavel_rounded,
-            iconColor: const Color(0xFF0066FF),
-            bgColor: const Color(0xFFEFF6FF),
+            iconColor: const Color(0xFF0284C7),
+            bgColor: const Color(0xFFF0F9FF),
             title: isArabic ? 'مزاداتي النشطة' : 'My Active Bids',
             onTap: () => context.push('/buyer-bidding-history'),
           ),
           const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
           _MenuItem(
+            icon: Icons.check_circle_outline_rounded,
+            iconColor: const Color(0xFF16A34A),
+            bgColor: const Color(0xFFF0FDF4),
+            title: isArabic ? 'المزادات الرابحة' : 'Won Auctions',
+            onTap: () => context.go('/wins'),
+          ),
+          const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
+          _MenuItem(
+            icon: Icons.favorite_rounded,
+            iconColor: const Color(0xFFEF4444),
+            bgColor: const Color(0xFFFEF2F2),
+            title: isArabic ? 'قائمة المفضلة' : 'My Wishlist',
+            onTap: () => context.go('/wishlist'),
+          ),
+          const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
+          _MenuItem(
             icon: Icons.share_rounded,
-            iconColor: const Color(0xFF10B981),
-            bgColor: const Color(0xFFECFDF5),
+            iconColor: const Color(0xFF0284C7),
+            bgColor: const Color(0xFFF0F9FF),
             title: isArabic ? 'شارك واكسب المكافآت' : 'Invite & Earn Rewards',
             onTap: () => context.push('/invite-and-earn'),
           ),
           const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
           _MenuItem(
             icon: Icons.language_rounded,
-            iconColor: const Color(0xFF8B5CF6),
-            bgColor: const Color(0xFFF5F3FF),
+            iconColor: const Color(0xFF0F172A),
+            bgColor: const Color(0xFFF8FAFC),
             title: isArabic ? 'لغة التطبيق' : 'Application Language',
             trailingText: isArabic ? 'العربية' : 'English',
             onTap: () => _showLanguageSelector(context, isArabic),
@@ -561,15 +458,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
           _MenuItem(
             icon: Icons.description_outlined,
-            iconColor: const Color(0xFFF59E0B),
-            bgColor: const Color(0xFFFFFBEB),
+            iconColor: const Color(0xFF0F172A),
+            bgColor: const Color(0xFFF8FAFC),
             title: isArabic ? 'الشروط والأحكام' : 'Terms & Conditions',
             onTap: () => context.push('/terms-and-conditions'),
           ),
           const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
           _MenuItem(
             icon: Icons.privacy_tip_outlined,
-            iconColor: const Color(0xFF64748B),
+            iconColor: const Color(0xFF0F172A),
             bgColor: const Color(0xFFF8FAFC),
             title: isArabic ? 'سياسة الخصوصية' : 'Privacy Policy',
             onTap: () => context.push('/privacy-policy'),
@@ -716,7 +613,7 @@ class _MenuItem extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF0066FF),
+                  color: Color(0xFF0284C7),
                 ),
               ),
             const SizedBox(width: 6),
@@ -751,7 +648,7 @@ class _LanguageTile extends StatelessWidget {
           color: isSelected ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected ? const Color(0xFF0066FF) : const Color(0xFFE2E8F0),
+            color: isSelected ? const Color(0xFF0284C7) : const Color(0xFFE2E8F0),
             width: 1.5,
           ),
         ),
@@ -763,12 +660,12 @@ class _LanguageTile extends StatelessWidget {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                color: isSelected ? const Color(0xFF0066FF) : const Color(0xFF1E293B),
+                color: isSelected ? const Color(0xFF0284C7) : const Color(0xFF1E293B),
               ),
             ),
             if (isSelected)
               const Icon(Icons.check_circle_rounded,
-                  color: Color(0xFF0066FF), size: 20),
+                  color: Color(0xFF0284C7), size: 20),
           ],
         ),
       ),

@@ -292,8 +292,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
   Future<void> _handleShare() async {
     if (_product == null) return;
     final currentPrice = (_product!.currentBid ?? _product!.startingPrice).toInt();
+    final barcodeStr = (_product!.originalBarcode != null && _product!.originalBarcode!.isNotEmpty)
+        ? _product!.originalBarcode!
+        : 'IQB-${_product!.id.toString().padLeft(6, '0')}';
     final shareMsg =
-        "${_product!.title}\nPrice: \$$currentPrice\nProduct ID: #${_product!.id}\nIraq Bid Live Auction: https://iraqbid.net/product/${_product!.id}";
+        "${_product!.title}\nPrice: \$$currentPrice\nBarcode: $barcodeStr\nIraq Bid Live Auction: https://iraqbid.net/product/${_product!.id}";
     await Share.share(shareMsg, subject: _product!.title);
   }
 
@@ -807,8 +810,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                                 const SizedBox(height: 2),
                                 Text(
                                   formattedTime,
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    fontSize: 13,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w900,
                                     color: Color(0xFF16A34A),
                                   ),
@@ -1054,16 +1060,15 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
               ),
             ),
           ] else ...[
-            // 4. NORMAL 3-PANEL STATUS BAR (Time Left | Stepper Bid | Current Bid)
+            // 4. CLEAN 2-PANEL TOP ROW: (Time Left | Current Bid)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  // 1. Time Left Pill Card
+                  // 1. Time Left Pill Card (Horizontal clean card)
                   Expanded(
-                    flex: 3,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF0FDF4),
                         borderRadius: BorderRadius.circular(14),
@@ -1072,7 +1077,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                       child: Row(
                         children: [
                           const Icon(Icons.access_time_rounded, size: 22, color: Color(0xFF16A34A)),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1080,7 +1085,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                                 Text(
                                   isArabic ? 'الوقت المتبقي' : 'Time Left',
                                   style: const TextStyle(
-                                    fontSize: 10,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w700,
                                     color: Color(0xFF15803D),
                                   ),
@@ -1088,6 +1093,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                                 const SizedBox(height: 2),
                                 Text(
                                   formattedTime,
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w900,
@@ -1102,91 +1110,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                     ),
                   ),
 
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
 
-                  // 2. Interactive Bid Stepper (- $17 +)
+                  // 2. Current Bid Card
                   Expanded(
-                    flex: 4,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF7ED),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFFFEDD5)),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // Minus Button
-                              GestureDetector(
-                                onTap: _decrementBid,
-                                child: Container(
-                                  width: 26,
-                                  height: 26,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: const Color(0xFFFFEDD5)),
-                                  ),
-                                  child: const Center(
-                                    child: Icon(Icons.remove, size: 16, color: Color(0xFFF97316)),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-
-                              // Stepper Value
-                              Text(
-                                '\$$_bidAmount',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFFEA580C),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-
-                              // Plus Button
-                              GestureDetector(
-                                onTap: _incrementBid,
-                                child: Container(
-                                  width: 26,
-                                  height: 26,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: const Color(0xFFFFEDD5)),
-                                  ),
-                                  child: const Center(
-                                    child: Icon(Icons.add, size: 16, color: Color(0xFFF97316)),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            isArabic ? 'مبلغ مزايدتك' : 'Your Bid Amount',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF9A3412),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(width: 8),
-
-                  // 3. Current Bid Badge Card
-                  Expanded(
-                    flex: 3,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       decoration: BoxDecoration(
                         color: const Color(0xFFEFF6FF),
                         borderRadius: BorderRadius.circular(14),
@@ -1194,8 +1123,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.gavel_rounded, size: 20, color: Color(0xFF0284C7)),
-                          const SizedBox(width: 6),
+                          const Icon(Icons.gavel_rounded, size: 22, color: Color(0xFF0284C7)),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1203,16 +1132,19 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                                 Text(
                                   isArabic ? 'أعلى مزايدة' : 'Current Bid',
                                   style: const TextStyle(
-                                    fontSize: 10,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w700,
                                     color: Color(0xFF0284C7),
                                   ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '$currentBidVal \$',
+                                  '\$$currentBidVal',
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    fontSize: 13,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.w900,
                                     color: Color(0xFF0284C7),
                                   ),
@@ -1225,6 +1157,84 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                     ),
                   ),
                 ],
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            // FULL-WIDTH HORIZONTAL "Your Bid Amount" STEPPER ROW
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7ED),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFFFEDD5)),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      isArabic ? 'مبلغ مزايدتك' : 'Your Bid Amount',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF9A3412),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Minus Button
+                        GestureDetector(
+                          onTap: _decrementBid,
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFFFEDD5)),
+                            ),
+                            child: const Center(
+                              child: Icon(Icons.remove, size: 18, color: Color(0xFFF97316)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 18),
+
+                        // Stepper Value
+                        Text(
+                          '\$$_bidAmount',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFFEA580C),
+                          ),
+                        ),
+                        const SizedBox(width: 18),
+
+                        // Plus Button
+                        GestureDetector(
+                          onTap: _incrementBid,
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFFFEDD5)),
+                            ),
+                            child: const Center(
+                              child: Icon(Icons.add, size: 18, color: Color(0xFFF97316)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
 
@@ -1350,11 +1360,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  isArabic ? 'رقم المنتج' : 'Product ID',
+                                  isArabic ? 'رقم المنتج / الباركود' : 'Item Barcode',
                                   style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
                                 ),
                                 Text(
-                                  '#${p.id}',
+                                  (p.originalBarcode != null && p.originalBarcode!.isNotEmpty)
+                                      ? p.originalBarcode!
+                                      : 'IQB-${p.id.toString().padLeft(6, '0')}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
@@ -1442,24 +1454,65 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
             ),
           ),
 
-          _buildExpandableTile(
-            icon: Icons.warning_amber_rounded,
-            iconColor: const Color(0xFFEF4444),
-            title: isArabic ? 'تحذير وإرشادات' : 'Warning',
-            isExpanded: _isWarningExpanded,
-            onTap: () {
-              setState(() => _isWarningExpanded = !_isWarningExpanded);
+          // Warning Section:
+          // Always shown! If product has defects/notes from admin -> Red Warning icon with defect details.
+          // If no defects/problems -> Black/neutral icon with "No defects found" message.
+          Builder(
+            builder: (context) {
+              final hasDefect = p.defectAlert || (p.defectDetails != null && p.defectDetails!.trim().isNotEmpty);
+              return _buildExpandableTile(
+                icon: Icons.warning_amber_rounded,
+                iconColor: hasDefect ? const Color(0xFFEF4444) : const Color(0xFF0F172A),
+                title: isArabic ? 'تحذير' : 'Warning',
+                isExpanded: _isWarningExpanded,
+                onTap: () {
+                  setState(() => _isWarningExpanded = !_isWarningExpanded);
+                },
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hasDefect
+                          ? ((p.defectDetails != null && p.defectDetails!.trim().isNotEmpty)
+                              ? p.defectDetails!.trim()
+                              : (isArabic
+                                  ? 'تم الإبلاغ عن وجود ملاحظات أو عيوب في هذا المنتج من قبل الإدارة.'
+                                  : 'This product has reported defects or inspection notes recorded by administration.'))
+                          : (isArabic
+                              ? 'لا توجد أي عيوب أو مشاكل في هذا المنتج. المنتج تم فحصه وبحالة ممتازة.'
+                              : 'No defects, issues, or warnings for this product. Fully inspected and in great condition.'),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: hasDefect ? FontWeight.w600 : FontWeight.w500,
+                        color: hasDefect ? const Color(0xFFDC2626) : const Color(0xFF475569),
+                        height: 1.5,
+                      ),
+                    ),
+                    if (hasDefect && p.defectImages.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 70,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: p.defectImages.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (context, idx) => ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              p.defectImages[idx],
+                              width: 70,
+                              height: 70,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
             },
-            child: Text(
-              isArabic
-                  ? 'المزايدة ملزمة قانونياً داخل المنصة. يرجى التأكد من رغبتك بالشراء قبل تقديم أي عرض مزايدة لتجنب حظر الحساب.'
-                  : 'Bidding is legally binding. Please verify item details before placing a bid. Defaulting may result in account restriction.',
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xFFDC2626),
-                height: 1.5,
-              ),
-            ),
           ),
 
           const SizedBox(height: 14),
@@ -1709,8 +1762,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
       return;
     }
 
-    final addressController = TextEditingController(text: 'Baghdad, Iraq');
-    final phoneController = TextEditingController();
     bool isSubmitting = false;
 
     showModalBottomSheet(
@@ -1723,7 +1774,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+          padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1752,7 +1803,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -1803,102 +1854,97 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                 ),
               ),
               const SizedBox(height: 16),
-              Text(
-                isArabic ? 'رقم الهاتف للتوصيل' : 'Delivery Phone Number',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
-                  hintText: isArabic ? '07XXXXXXXX' : 'Phone number',
-                  prefixIcon: const Icon(Icons.phone_outlined, size: 18),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                isArabic ? 'عنوان التوصيل' : 'Delivery Address',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: addressController,
-                decoration: InputDecoration(
-                  hintText: isArabic ? 'المدينة، المنطقة، الشارع' : 'City, Area, Street',
-                  prefixIcon: const Icon(Icons.location_on_outlined, size: 18),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-              const SizedBox(height: 14),
+
+              // Confirmation Prompt Box
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(10),
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.payments_outlined, size: 16, color: Color(0xFF475569)),
-                    const SizedBox(width: 8),
+                    const Icon(Icons.help_outline_rounded, size: 22, color: Color(0xFF0284C7)),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        isArabic ? 'الدفع عند الاستلام (نقداً)' : 'Payment Method: Cash on Delivery',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                        isArabic
+                            ? 'هل أنت متأكد من رغبتك في شراء هذا المنتج فوراً بسعر \$$buyNowPrice؟ سيتم التواصل معك لتأكيد موعد التوصيل.'
+                            : 'Are you sure you want to buy this item now for \$$buyNowPrice? Delivery will be confirmed with you shortly.',
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF334155), height: 1.4),
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: isSubmitting
-                      ? null
-                      : () async {
-                          setModalState(() => isSubmitting = true);
-                          try {
-                            final res = await apiService.buyNow(
-                              productId: int.tryParse(widget.productId) ?? (_product?.id ?? 0),
-                              shippingAddress: addressController.text.trim(),
-                              phone: phoneController.text.trim(),
-                            );
-                            if (mounted) Navigator.pop(ctx);
-                            HapticFeedback.heavyImpact();
-                            _showBuyNowSuccessDialog(res['data']?['orderNumber'] ?? 'Confirmed', isArabic);
-                            _loadProductData();
-                          } catch (e) {
-                            setModalState(() => isSubmitting = false);
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(e.toString().replaceAll('Exception: ', '')),
-                                  backgroundColor: const Color(0xFFEF4444),
-                                ),
-                              );
-                            }
-                          }
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFEA580C),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+
+              // Action Buttons: Confirm or Reject
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      ),
+                      child: Text(
+                        isArabic ? 'إلغاء' : 'Reject / Cancel',
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                      ),
+                    ),
                   ),
-                  child: isSubmitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                        )
-                      : Text(
-                          isArabic ? 'تأكيد الشراء الآن (\$$buyNowPrice)' : 'Confirm & Buy Now (\$$buyNowPrice)',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white),
-                        ),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      onPressed: isSubmitting
+                          ? null
+                          : () async {
+                              setModalState(() => isSubmitting = true);
+                              try {
+                                final res = await apiService.buyNow(
+                                  productId: int.tryParse(widget.productId) ?? (_product?.id ?? 0),
+                                );
+                                if (mounted) Navigator.pop(ctx);
+                                HapticFeedback.heavyImpact();
+                                _showBuyNowSuccessDialog(res['data']?['orderNumber'] ?? 'Confirmed', isArabic);
+                                _loadProductData();
+                              } catch (e) {
+                                setModalState(() => isSubmitting = false);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(e.toString().replaceAll('Exception: ', '')),
+                                      backgroundColor: const Color(0xFFEF4444),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFEA580C),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: isSubmitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            )
+                          : Text(
+                              isArabic ? 'تأكيد الشراء' : 'Confirm Purchase',
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white),
+                            ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
