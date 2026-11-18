@@ -1763,6 +1763,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
     }
 
     bool isSubmitting = false;
+    final TextEditingController couponController = TextEditingController();
+    String? appliedCouponCode;
+    double discountAmount = 0.0;
+    double finalPrice = buyNowPrice.toDouble();
+    bool isValidatingCoupon = false;
+    String? couponMessage;
+    bool couponSuccess = false;
 
     showModalBottomSheet(
       context: context,
@@ -1841,10 +1848,26 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                                 isArabic ? 'سعر الشراء الفوري: ' : 'Buy Now Price: ',
                                 style: const TextStyle(fontSize: 11, color: Color(0xFF9A3412)),
                               ),
-                              Text(
-                                '\$$buyNowPrice',
-                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFFEA580C)),
-                              ),
+                              if (discountAmount > 0) ...[
+                                Text(
+                                  '\$$buyNowPrice',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF94A3B8),
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '\$${finalPrice.toStringAsFixed(finalPrice.truncateToDouble() == finalPrice ? 0 : 2)}',
+                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF16A34A)),
+                                ),
+                              ] else ...[
+                                Text(
+                                  '\$$buyNowPrice',
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFFEA580C)),
+                                ),
+                              ],
                             ],
                           ),
                         ],
@@ -1853,7 +1876,146 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
+
+              // Coupon Code Input Field Box
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: couponSuccess ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.confirmation_number_outlined, size: 16, color: Color(0xFF64748B)),
+                        const SizedBox(width: 6),
+                        Text(
+                          isArabic ? 'كوبون الخصم للمؤثرين' : 'Influencer Discount Coupon',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: couponController,
+                            textCapitalization: TextCapitalization.characters,
+                            enabled: appliedCouponCode == null,
+                            decoration: InputDecoration(
+                              hintText: isArabic ? 'أدخل كود الكوبون (مثال: AHMED10)' : 'Enter coupon code (e.g. AHMED10)',
+                              hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                              ),
+                            ),
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF0F172A), letterSpacing: 0.5),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (appliedCouponCode == null)
+                          ElevatedButton(
+                            onPressed: isValidatingCoupon
+                                ? null
+                                : () async {
+                                    final code = couponController.text.trim();
+                                    if (code.isEmpty) return;
+                                    setModalState(() {
+                                      isValidatingCoupon = true;
+                                      couponMessage = null;
+                                    });
+                                    try {
+                                      final vRes = await apiService.validateCoupon(
+                                        couponCode: code,
+                                        amount: buyNowPrice.toDouble(),
+                                        productId: int.tryParse(widget.productId) ?? (_product?.id ?? 0),
+                                      );
+                                      if (vRes['success'] == true) {
+                                        final data = vRes['data'] as Map<String, dynamic>;
+                                        final disc = (data['discount_amount'] as num).toDouble();
+                                        final fin = (data['final_amount'] as num).toDouble();
+                                        setModalState(() {
+                                          appliedCouponCode = code;
+                                          discountAmount = disc;
+                                          finalPrice = fin;
+                                          couponSuccess = true;
+                                          couponMessage = isArabic
+                                              ? 'تم تطبيق خصم $disc\$ بنجاح!'
+                                              : 'Coupon applied! Saved \$$disc';
+                                          isValidatingCoupon = false;
+                                        });
+                                      } else {
+                                        setModalState(() {
+                                          couponSuccess = false;
+                                          couponMessage = vRes['message'] ?? 'Invalid coupon code';
+                                          isValidatingCoupon = false;
+                                        });
+                                      }
+                                    } catch (e) {
+                                      setModalState(() {
+                                        couponSuccess = false;
+                                        couponMessage = e.toString().replaceAll('Exception: ', '');
+                                        isValidatingCoupon = false;
+                                      });
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0284C7),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              elevation: 0,
+                            ),
+                            child: isValidatingCoupon
+                                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : Text(isArabic ? 'تطبيق' : 'Apply', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+                          )
+                        else
+                          TextButton(
+                            onPressed: () {
+                              setModalState(() {
+                                appliedCouponCode = null;
+                                discountAmount = 0.0;
+                                finalPrice = buyNowPrice.toDouble();
+                                couponController.clear();
+                                couponMessage = null;
+                                couponSuccess = false;
+                              });
+                            },
+                            child: Text(isArabic ? 'إزالة' : 'Remove', style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12, fontWeight: FontWeight.w700)),
+                          ),
+                      ],
+                    ),
+                    if (couponMessage != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        couponMessage!,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: couponSuccess ? const Color(0xFF16A34A) : const Color(0xFFEF4444),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
 
               // Confirmation Prompt Box
               Container(
@@ -1871,8 +2033,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                     Expanded(
                       child: Text(
                         isArabic
-                            ? 'هل أنت متأكد من رغبتك في شراء هذا المنتج فوراً بسعر \$$buyNowPrice؟ سيتم التواصل معك لتأكيد موعد التوصيل.'
-                            : 'Are you sure you want to buy this item now for \$$buyNowPrice? Delivery will be confirmed with you shortly.',
+                            ? 'هل أنت متأكد من رغبتك في شراء هذا المنتج فوراً بسعر \$${finalPrice.toStringAsFixed(finalPrice.truncateToDouble() == finalPrice ? 0 : 2)}؟ سيتم التواصل معك لتأكيد موعد التوصيل.'
+                            : 'Are you sure you want to buy this item now for \$${finalPrice.toStringAsFixed(finalPrice.truncateToDouble() == finalPrice ? 0 : 2)}? Delivery will be confirmed with you shortly.',
                         style: const TextStyle(fontSize: 13, color: Color(0xFF334155), height: 1.4),
                       ),
                     ),
@@ -1909,6 +2071,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                               try {
                                 final res = await apiService.buyNow(
                                   productId: int.tryParse(widget.productId) ?? (_product?.id ?? 0),
+                                  couponCode: appliedCouponCode,
                                 );
                                 if (mounted) Navigator.pop(ctx);
                                 HapticFeedback.heavyImpact();
@@ -1951,6 +2114,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
         ),
       ),
     );
+  }
   }
 
   void _showBuyNowSuccessDialog(String orderNumber, bool isArabic) {
