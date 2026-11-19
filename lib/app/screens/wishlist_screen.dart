@@ -81,24 +81,20 @@ class _WishlistScreenState extends State<WishlistScreen> {
     });
 
     try {
-      final results = await Future.wait([
-        StorageService.getWishlist(),
-        apiService.getAllProducts(page: 1, limit: 100),
-      ]);
+      final wishlistIds = await StorageService.getWishlist();
+      List<ProductModel> allProds = [];
 
-      final wishlistIds = results[0] as List<int>;
-      final productsRes = results[1] as Map<String, dynamic>;
-      final allProds = productsRes['products'] as List<ProductModel>? ?? [];
+      try {
+        final productsRes = await apiService.getAllProducts(page: 1, limit: 100);
+        allProds = productsRes['products'] as List<ProductModel>? ?? [];
+      } catch (apiErr) {
+        debugPrint('Wishlist products fetch error: $apiErr');
+      }
 
       _allProducts = allProds;
 
       // Filter products that are in user's wishlist
       List<ProductModel> filtered = allProds.where((p) => wishlistIds.contains(p.id)).toList();
-
-      // If user hasn't added 6 items yet, provide the top products to ensure a complete rich experience matching the reference
-      if (filtered.isEmpty && allProds.isNotEmpty) {
-        filtered = allProds.take(6).toList();
-      }
 
       if (mounted) {
         setState(() {
@@ -109,7 +105,8 @@ class _WishlistScreenState extends State<WishlistScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          // If error occurs, gracefully fallback to empty list instead of blocking crash screen
+          _wishlistProducts = [];
           _isLoading = false;
         });
       }
