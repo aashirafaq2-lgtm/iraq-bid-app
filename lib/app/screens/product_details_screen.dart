@@ -2115,7 +2115,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
       ),
     );
   }
-  }
 
   void _showBuyNowSuccessDialog(String orderNumber, bool isArabic) {
     showDialog(
