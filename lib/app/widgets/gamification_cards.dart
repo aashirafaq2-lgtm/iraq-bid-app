@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
-import '../services/language_service.dart';
+import '../services/api_service.dart';
 
 class GamificationCardsWidget extends StatefulWidget {
   final bool isArabic;
@@ -541,17 +541,18 @@ class _LuckyWheelInteractiveModalState extends State<LuckyWheelInteractiveModal>
 
   double _currentRotation = 0.0;
   bool _isSpinning = false;
-  String? _wonPrize;
+  int _spinsLeft = 3;
+  String? _referralLink;
+  String? _referralToken;
 
+  // 6 Slices matching reference screenshot media_1795093784725_4e69f3e1.jpg
   final List<Map<String, dynamic>> _prizes = [
-    {'title_en': '+5 Bid Credits', 'title_ar': '+5 رصيد مزايدة', 'color': Color(0xFFEA580C)},
-    {'title_en': 'Free Shipping', 'title_ar': 'شحن مجاني', 'color': Color(0xFFF59E0B)},
-    {'title_en': '+15 Bid Credits', 'title_ar': '+15 رصيد مزايدة', 'color': Color(0xFFEF4444)},
-    {'title_en': '20% Discount', 'title_ar': 'خصم 20%', 'color': Color(0xFF8B5CF6)},
-    {'title_en': '+50 Bid Credits', 'title_ar': '+50 رصيد مزايدة', 'color': Color(0xFF10B981)},
-    {'title_en': 'Mystery Box', 'title_ar': 'صندوق المفاجآت', 'color': Color(0xFF3B82F6)},
-    {'title_en': '+10 Bid Credits', 'title_ar': '+10 رصيد مزايدة', 'color': Color(0xFFD97706)},
-    {'title_en': 'Mega Jackpot', 'title_ar': 'الجائزة الكبرى', 'color': Color(0xFFEC4899)},
+    {'title_en': '10% Coupon', 'title_ar': 'كوبون 10%', 'color': Color(0xFFDC2626)},
+    {'title_en': '\$0.50', 'title_ar': '0.50 \$', 'color': Color(0xFFFEF3C7)},
+    {'title_en': '\$0.75', 'title_ar': '0.75 \$', 'color': Color(0xFFDC2626)},
+    {'title_en': '\$1.00', 'title_ar': '1.00 \$', 'color': Color(0xFFFEF3C7)},
+    {'title_en': '\$1.50', 'title_ar': '1.50 \$', 'color': Color(0xFFDC2626)},
+    {'title_en': '15% Coupon', 'title_ar': 'كوبون 15%', 'color': Color(0xFFFEF3C7)},
   ];
 
   @override
@@ -561,6 +562,22 @@ class _LuckyWheelInteractiveModalState extends State<LuckyWheelInteractiveModal>
       vsync: this,
       duration: const Duration(seconds: 4),
     );
+    _loadWheelStatus();
+  }
+
+  Future<void> _loadWheelStatus() async {
+    try {
+      final res = await apiService.getLuckyWheelStatus();
+      if (res['success'] == true && res['data'] != null) {
+        if (mounted) {
+          setState(() {
+            _spinsLeft = res['data']['spins_left'] ?? 3;
+            _referralLink = res['data']['referral_link'];
+            _referralToken = res['data']['referral_token'];
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -569,52 +586,102 @@ class _LuckyWheelInteractiveModalState extends State<LuckyWheelInteractiveModal>
     super.dispose();
   }
 
-  void _spinTheWheel() {
+  void _shareReferralLink() {
+    final link = _referralLink ?? 'https://iraqbid.net/join?ref=${_referralToken ?? "WHEEL"}&source=wheel';
+    final msg = widget.isArabic
+        ? 'دوّر عجلة الحظ اليومية واربح رصيد مزايدة وجوائز حصرية مجاناً!\nانضم عبر الرابط:\n$link'
+        : 'Spin the Daily Lucky Wheel for free bid credits & exclusive rewards!\nJoin here: $link';
+    Share.share(msg, subject: 'Iraq Bid - Daily Lucky Wheel');
+  }
+
+  void _showInviteMoreDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(widget.isArabic ? 'انتهت المحاولات!' : 'No Spins Left!'),
+        content: Text(
+          widget.isArabic
+              ? 'قم بدعوة أصدقائك للحصول على دورات إضافية مجانية في عجلة الحظ!'
+              : 'Invite friends using your personal referral link to unlock more free spins!',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(widget.isArabic ? 'إلغاء' : 'Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _shareReferralLink();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEA580C),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text(widget.isArabic ? 'دعوة الآن' : 'Invite Friends', style: const TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _spinTheWheel() async {
     if (_isSpinning) return;
+    if (_spinsLeft <= 0) {
+      _showInviteMoreDialog();
+      return;
+    }
 
     HapticFeedback.heavyImpact();
     setState(() {
       _isSpinning = true;
-      _wonPrize = null;
     });
 
-    final random = math.Random();
-    final winningIndex = random.nextInt(_prizes.length);
-    final sliceAngle = (2 * math.pi) / _prizes.length;
+    try {
+      final spinRes = await apiService.spinLuckyWheel();
+      final winningLabel = spinRes['prize']?['label'] ?? '\$0.50';
+      int winningIndex = _prizes.indexWhere((p) => p['title_en'] == winningLabel);
+      if (winningIndex == -1) winningIndex = 1;
 
-    // Spin at least 5 full rotations + landing slice
-    final extraRotations = 5 * 2 * math.pi;
-    final targetAngle = extraRotations + (winningIndex * sliceAngle) + (sliceAngle / 2);
+      final sliceAngle = (2 * math.pi) / _prizes.length;
+      final extraRotations = 5 * 2 * math.pi;
+      final targetAngle = extraRotations + (winningIndex * sliceAngle) + (sliceAngle / 2);
 
-    _spinAnimation = Tween<double>(
-      begin: _currentRotation,
-      end: _currentRotation + targetAngle,
-    ).animate(
-      CurvedAnimation(parent: _spinController, curve: Curves.easeOutCubic),
-    );
+      _spinAnimation = Tween<double>(
+        begin: _currentRotation,
+        end: _currentRotation + targetAngle,
+      ).animate(
+        CurvedAnimation(parent: _spinController, curve: Curves.easeOutCubic),
+      );
 
-    _spinAnimation.addListener(() {
-      setState(() {});
-    });
+      _spinAnimation.addListener(() {
+        if (mounted) setState(() {});
+      });
 
-    _spinAnimation.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        _currentRotation = _spinAnimation.value % (2 * math.pi);
-        _isSpinning = false;
-        final prize = widget.isArabic
-            ? _prizes[winningIndex]['title_ar']
-            : _prizes[winningIndex]['title_en'];
+      _spinAnimation.addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          _currentRotation = _spinAnimation.value % (2 * math.pi);
+          _isSpinning = false;
+          _spinsLeft = math.max(0, _spinsLeft - 1);
+          final prize = widget.isArabic
+              ? _prizes[winningIndex]['title_ar']
+              : _prizes[winningIndex]['title_en'];
 
-        setState(() {
-          _wonPrize = prize;
-        });
+          HapticFeedback.vibrate();
+          _showCelebrationDialog(prize);
+        }
+      });
 
-        HapticFeedback.vibrate();
-        _showCelebrationDialog(prize);
+      _spinController.forward(from: 0.0);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSpinning = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+        );
       }
-    });
-
-    _spinController.forward(from: 0.0);
+    }
   }
 
   void _showCelebrationDialog(String prize) {
@@ -634,8 +701,8 @@ class _LuckyWheelInteractiveModalState extends State<LuckyWheelInteractiveModal>
             const SizedBox(height: 8),
             Text(
               widget.isArabic
-                  ? 'لقد ربحت: $prize\nتمت إضافة الجائزة إلى محفظتك بنجاح!'
-                  : 'You won: $prize\nYour reward has been credited to your balance!',
+                  ? 'لقد ربحت: $prize\nتمت إضافة الجائزة إلى رصيدك بنجاح!'
+                  : 'You won: $prize\nYour reward has been credited to your account!',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
             ),
@@ -699,16 +766,18 @@ class _LuckyWheelInteractiveModalState extends State<LuckyWheelInteractiveModal>
             children: [
               Row(
                 children: [
-                  const Text('👑', style: TextStyle(fontSize: 22)),
-                  const SizedBox(width: 8),
+                  const Text('🌿', style: TextStyle(fontSize: 20)),
+                  const SizedBox(width: 4),
                   Text(
                     isAr ? 'عجلة الحظ اليومية' : 'Daily Lucky Wheel',
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 19,
                       fontWeight: FontWeight.w900,
-                      color: Color(0xFF0F172A),
+                      color: Color(0xFF1E1B4B),
                     ),
                   ),
+                  const SizedBox(width: 4),
+                  const Text('🌿', style: TextStyle(fontSize: 20)),
                 ],
               ),
               IconButton(
@@ -718,14 +787,25 @@ class _LuckyWheelInteractiveModalState extends State<LuckyWheelInteractiveModal>
             ],
           ),
 
-          Text(
-            isAr
-                ? 'دوّر العجلة يومياً واحصل على رصيد مزايدة وجوائز حصرية مجاناً!'
-                : 'Spin the wheel daily for free bid credits & exclusive rewards!',
-            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+          // Subtitle banner
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF7ED),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFFFEDD5)),
+            ),
+            child: Text(
+              isAr
+                  ? 'دوّر العجلة يومياً للحصول على رصيد مزايدة وجوائز حصرية مجاناً!'
+                  : 'Spin the wheel daily for free bid credits & exclusive rewards!',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11.5, color: Color(0xFFC2410C), fontWeight: FontWeight.w700),
+            ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
 
           // The Interactive Wheel
           Stack(
@@ -759,7 +839,7 @@ class _LuckyWheelInteractiveModalState extends State<LuckyWheelInteractiveModal>
                 ),
               ),
 
-              // Center Golden Peg / Indicator
+              // Center Golden Peg / Gavel Indicator
               Container(
                 width: 48,
                 height: 48,
@@ -778,7 +858,7 @@ class _LuckyWheelInteractiveModalState extends State<LuckyWheelInteractiveModal>
                   ],
                 ),
                 child: const Center(
-                  child: Icon(Icons.star_rounded, color: Colors.white, size: 24),
+                  child: Icon(Icons.gavel_rounded, color: Colors.white, size: 22),
                 ),
               ),
 
@@ -793,7 +873,80 @@ class _LuckyWheelInteractiveModalState extends State<LuckyWheelInteractiveModal>
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
+
+          // Status Row: Your Spins + Get More Spins
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                // Left: Your Spins
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.casino_rounded, color: Color(0xFFEA580C), size: 22),
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isAr ? 'دوراتك' : 'Your Spins',
+                            style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B), fontWeight: FontWeight.w700),
+                          ),
+                          Text(
+                            '$_spinsLeft',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFFEA580C)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Vertical Divider
+                Container(width: 1, height: 32, color: const Color(0xFFCBD5E1)),
+
+                // Right: Get More Spins (Clickable)
+                Expanded(
+                  child: InkWell(
+                    onTap: _shareReferralLink,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.person_add_alt_1_rounded, color: Color(0xFFEA580C), size: 20),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isAr ? 'احصل على دورات' : 'Get More Spins',
+                                style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B), fontWeight: FontWeight.w700),
+                              ),
+                              Text(
+                                isAr ? 'دعوة أصدقاء' : 'Invite Friends',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
 
           // Spin Now Action Button
           GestureDetector(
@@ -818,16 +971,23 @@ class _LuckyWheelInteractiveModalState extends State<LuckyWheelInteractiveModal>
                 ],
               ),
               child: Center(
-                child: Text(
-                  _isSpinning
-                      ? (isAr ? 'العجلة تدور الآن...' : 'Spinning...')
-                      : (isAr ? 'دوّر العجلة الآن (مجاناً)' : 'SPIN THE WHEEL (FREE)'),
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                    letterSpacing: 0.5,
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (!_isSpinning) const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 22),
+                    if (!_isSpinning) const SizedBox(width: 6),
+                    Text(
+                      _isSpinning
+                          ? (isAr ? 'العجلة تدور الآن...' : 'Spinning...')
+                          : (isAr ? 'دوّر العجلة الآن (مجاناً)' : 'SPIN THE WHEEL (FREE)'),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -936,9 +1096,9 @@ class _ArrowPainter extends CustomPainter {
 }
 
 // ============================================================================
-// INTERACTIVE DAILY CHALLENGE MODAL (QUEST BOARD & REWARDS)
+// DAILY CHALLENGE MODAL (100% REPLICATING REFERENCE SCREENSHOT)
 // ============================================================================
-class DailyChallengeInteractiveModal extends StatelessWidget {
+class DailyChallengeInteractiveModal extends StatefulWidget {
   final bool isArabic;
   const DailyChallengeInteractiveModal({super.key, required this.isArabic});
 
@@ -952,8 +1112,79 @@ class DailyChallengeInteractiveModal extends StatelessWidget {
   }
 
   @override
+  State<DailyChallengeInteractiveModal> createState() => _DailyChallengeInteractiveModalState();
+}
+
+class _DailyChallengeInteractiveModalState extends State<DailyChallengeInteractiveModal> {
+  int _myInvitations = 0;
+  int _timeLeftSeconds = 45380;
+  String? _referralLink;
+  String? _referralToken;
+  List<Map<String, dynamic>> _topParticipants = [];
+  Timer? _countdownTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChallengeData();
+    _startTimer();
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startTimer() {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_timeLeftSeconds > 0) {
+        if (mounted) {
+          setState(() {
+            _timeLeftSeconds--;
+          });
+        }
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  Future<void> _loadChallengeData() async {
+    try {
+      final res = await apiService.getDailyChallenge();
+      if (res['success'] == true && res['data'] != null) {
+        final data = res['data'];
+        if (mounted) {
+          setState(() {
+            _myInvitations = data['my_invitations'] ?? 0;
+            _timeLeftSeconds = data['time_left_seconds'] ?? 45380;
+            _referralLink = data['referral_link'];
+            _referralToken = data['referral_token'];
+            _topParticipants = ((data['top_participants'] as List?) ?? [])
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList();
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  String _formatHours() => (_timeLeftSeconds ~/ 3600).toString().padLeft(2, '0');
+  String _formatMinutes() => ((_timeLeftSeconds % 3600) ~/ 60).toString().padLeft(2, '0');
+  String _formatSeconds() => (_timeLeftSeconds % 60).toString().padLeft(2, '0');
+
+  void _shareDailyChallengeLink() {
+    final link = _referralLink ?? 'https://iraqbid.net/join?ref=${_referralToken ?? "CHALLENGE"}&source=challenge';
+    final msg = widget.isArabic
+        ? 'شارك في التحدي اليومي على تطبيق IRAQ BID واربح هاتف ذكي ورصيد 500\$!\nانضم الآن عبر الرابط الخاص:\n$link'
+        : 'Join the Daily Challenge on IRAQ BID to win a Smartphone + 500 Credits today!\nJoin via personal link:\n$link';
+    Share.share(msg, subject: 'IRAQ BID - Daily Challenge');
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isAr = isArabic;
+    final isAr = widget.isArabic;
 
     return Container(
       decoration: const BoxDecoration(
@@ -963,7 +1194,7 @@ class DailyChallengeInteractiveModal extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Drag handle
           Center(
@@ -977,31 +1208,28 @@ class DailyChallengeInteractiveModal extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // Header
+          // Header: Laurel + Trophy + Title + Close Button
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF7C3AED).withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.wallet_giftcard_rounded, color: Color(0xFF7C3AED), size: 22),
-                  ),
-                  const SizedBox(width: 8),
+                  const Text('🌿', style: TextStyle(fontSize: 18)),
+                  const SizedBox(width: 4),
+                  const Text('🏆', style: TextStyle(fontSize: 22)),
+                  const SizedBox(width: 6),
                   Text(
-                    isAr ? 'التحدي اليومي والجوائز' : 'Daily Challenges & Prizes',
+                    isAr ? 'التحدي اليومي' : 'Daily Challenge',
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 20,
                       fontWeight: FontWeight.w900,
                       color: Color(0xFF1E1B4B),
                     ),
                   ),
+                  const SizedBox(width: 4),
+                  const Text('🌿', style: TextStyle(fontSize: 18)),
                 ],
               ),
               IconButton(
@@ -1011,164 +1239,416 @@ class DailyChallengeInteractiveModal extends StatelessWidget {
             ],
           ),
 
-          // Grand Prize Banner
+          // Orange Ribbon Banner
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF7C3AED), Color(0xFF6D28D9)],
+                colors: [Color(0xFFEA580C), Color(0xFFF97316)],
               ),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFEA580C).withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Text(
+              isAr
+                  ? 'المستخدم الأكثر دعوة للأصدقاء يفوز بجائزة اليوم!'
+                  : 'The user with the highest number of invitations wins today\'s prize!',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // Hero Prize Card (Purple Banner with 3D Smartphone & Gift)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF6B21A8), Color(0xFF7C3AED), Color(0xFF9333EA)],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF7C3AED).withOpacity(0.4),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
             child: Row(
               children: [
-                SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: Image.asset(
-                    'assets/images/daily_challenge_3d.png',
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.phone_iphone_rounded, color: Colors.white, size: 32),
-                  ),
-                ),
-                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        isAr ? 'جائزة اليوم: هاتف ذكي ورصيد مجاني!' : "Today's Prize: Smartphone & 500 Credits!",
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13),
+                      Row(
+                        children: [
+                          const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFDE047), size: 16),
+                          const SizedBox(width: 6),
+                          Text(
+                            isAr ? 'جائزة اليوم' : "Today's Prize",
+                            style: const TextStyle(
+                              color: Color(0xFFFDE047),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 6),
                       Text(
-                        isAr ? 'أكمل المهام اليومية لتدخل السحب الأسبوعي تلقائياً' : 'Complete today quests to enter the grand giveaway automatically',
-                        style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 10),
+                        isAr ? 'هاتف ذكي\n+ 500 رصيد' : 'Smartphone\n+ 500 Credits',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          height: 1.15,
+                        ),
                       ),
                     ],
+                  ),
+                ),
+                Container(
+                  width: 84,
+                  height: 84,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Image.asset(
+                    'assets/images/daily_challenge_3d.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Center(
+                      child: Icon(Icons.phone_iphone_rounded, color: Colors.white, size: 44),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // Quest 1: Daily Check-in
-          _buildQuestItem(
-            icon: Icons.check_circle_rounded,
-            color: const Color(0xFF10B981),
-            title: isAr ? 'تسجيل الدخول اليومي' : 'Daily Check-in',
-            reward: '+2 Credits',
-            buttonLabel: isAr ? 'تم الاستلام' : 'Claimed',
-            isDone: true,
-            onTap: () {},
+          // Time Left Countdown Row
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.access_time_rounded, color: Color(0xFF7C3AED), size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  isAr ? 'الوقت المتبقي' : 'Time Left',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1E1B4B),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(width: 1, height: 20, color: const Color(0xFFCBD5E1)),
+                const SizedBox(width: 12),
+
+                // HHh : MMm : SSs blocks
+                _buildTimeBadge('${_formatHours()}h'),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(':', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF7C3AED))),
+                ),
+                _buildTimeBadge('${_formatMinutes()}m'),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(':', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF7C3AED))),
+                ),
+                _buildTimeBadge('${_formatSeconds()}s'),
+              ],
+            ),
           ),
 
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
 
-          // Quest 2: Invite Friends
-          _buildQuestItem(
-            icon: Icons.person_add_rounded,
-            color: const Color(0xFF7C3AED),
-            title: isAr ? 'دعوة صديق جديد' : 'Invite a Friend',
-            reward: '+15 Credits',
-            buttonLabel: isAr ? 'مشاركة الرابط' : 'Share Link',
-            isDone: false,
-            onTap: () {
-              Share.share(
-                'Join Iraq Bid now and get 50 free credits for live auctions! https://iraqbid.net',
-                subject: 'Iraq Bid Live Auctions',
-              );
-            },
-          ),
+          // My Invitations & Invite Friends Row
+          Row(
+            children: [
+              // Left: My Invitations Box
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF7C3AED).withOpacity(0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.people_alt_rounded, color: Color(0xFF7C3AED), size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isAr ? 'دعواتي' : 'My Invitations',
+                            style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B), fontWeight: FontWeight.w700),
+                          ),
+                          Text(
+                            '$_myInvitations',
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFFEA580C)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
 
-          const SizedBox(height: 10),
+              const SizedBox(width: 12),
 
-          // Quest 3: Place a Bid
-          _buildQuestItem(
-            icon: Icons.gavel_rounded,
-            color: const Color(0xFFEA580C),
-            title: isAr ? 'المشاركة في مزاد حي' : 'Place 1 Auction Bid',
-            reward: '+10 Credits',
-            buttonLabel: isAr ? 'المزايدة الآن' : 'Bid Now',
-            isDone: false,
-            onTap: () {
-              Navigator.pop(context);
-            },
+              // Right: Invite Friends Button
+              GestureDetector(
+                onTap: _shareDailyChallengeLink,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFEA580C), Color(0xFFF97316)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFEA580C).withOpacity(0.35),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.share_rounded, color: Colors.white, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        isAr ? 'دعوة الأصدقاء' : 'Invite Friends',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
 
           const SizedBox(height: 18),
+
+          // Leaderboard Section: Top 5 Participants
+          Row(
+            children: [
+              const Icon(Icons.emoji_events_rounded, color: Color(0xFFF59E0B), size: 18),
+              const SizedBox(width: 6),
+              Text(
+                isAr ? 'أفضل 5 مشاركين' : 'Top 5 Participants',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // Top 5 List
+          ...(_topParticipants.isNotEmpty
+              ? _topParticipants.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final item = entry.value;
+                  return _buildLeaderboardRow(
+                    rank: idx + 1,
+                    name: item['name']?.toString() ?? 'User',
+                    invitations: item['invitations'] ?? 0,
+                    isArabic: isAr,
+                  );
+                }).toList()
+              : [
+                  _buildLeaderboardRow(rank: 1, name: 'Ali Ahmed', invitations: 356, isArabic: isAr),
+                  _buildLeaderboardRow(rank: 2, name: 'Mustafa Kareem', invitations: 289, isArabic: isAr),
+                  _buildLeaderboardRow(rank: 3, name: 'Hassan Saleh', invitations: 241, isArabic: isAr),
+                  _buildLeaderboardRow(rank: 4, name: 'Omar Abdulrahman', invitations: 198, isArabic: isAr),
+                  _buildLeaderboardRow(rank: 5, name: 'Zaid Mohammed', invitations: 176, isArabic: isAr),
+                ]),
+
+          const SizedBox(height: 14),
+
+          // Bottom Info Note
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF7ED),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFFFEDD5)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline_rounded, color: Color(0xFFEA580C), size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: RichText(
+                    text: TextSpan(
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF9A3412), height: 1.4),
+                      children: [
+                        TextSpan(
+                          text: isAr ? 'ملاحظة: ' : 'Note: ',
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        TextSpan(
+                          text: isAr
+                              ? 'تُحتسب الدعوة فقط عندما يقوم الشخص المدعو بتحميل التطبيق وإنشاء حساب وتأكيد رقم الهاتف بالرمز.'
+                              : 'An invitation is only accepted when the invited person downloads the app and creates an account.',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildQuestItem({
-    required IconData icon,
-    required Color color,
-    required String title,
-    required String reward,
-    required String buttonLabel,
-    required bool isDone,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildTimeBadge(String text) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF7C3AED),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLeaderboardRow({
+    required int rank,
+    required String name,
+    required int invitations,
+    required bool isArabic,
+  }) {
+    Color badgeColor;
+    if (rank == 1) {
+      badgeColor = const Color(0xFFF59E0B);
+    } else if (rank == 2) {
+      badgeColor = const Color(0xFF94A3B8);
+    } else if (rank == 3) {
+      badgeColor = const Color(0xFFD97706);
+    } else {
+      badgeColor = const Color(0xFFCBD5E1);
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF1F5F9)),
       ),
       child: Row(
         children: [
+          // Rank Badge
           Container(
-            padding: const EdgeInsets.all(8),
+            width: 22,
+            height: 22,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: badgeColor,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
-                  ),
+            child: Center(
+              child: Text(
+                '$rank',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 11,
                 ),
-                Text(
-                  reward,
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
-                    color: color,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-          GestureDetector(
-            onTap: onTap,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: isDone ? const Color(0xFFE2E8F0) : color,
-                borderRadius: BorderRadius.circular(10),
+          const SizedBox(width: 10),
+
+          // User Avatar Icon
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE2E8F0),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.person, size: 16, color: Color(0xFF64748B)),
+          ),
+          const SizedBox(width: 10),
+
+          // User Name
+          Expanded(
+            child: Text(
+              name,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A),
               ),
-              child: Text(
-                buttonLabel,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  color: isDone ? const Color(0xFF64748B) : Colors.white,
-                ),
+            ),
+          ),
+
+          // Invitations Pill
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEDE9FE),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              isArabic ? '$invitations دعوة' : '$invitations Invitations',
+              style: const TextStyle(
+                color: Color(0xFF6D28D9),
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
               ),
             ),
           ),

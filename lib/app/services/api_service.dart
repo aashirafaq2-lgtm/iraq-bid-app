@@ -464,16 +464,27 @@ class ApiService {
         }
       }
       
+      // Fetch pending referral token and source if user installed via referral link
+      final pendingRefToken = await ReferralService.getPendingReferralToken();
+      final pendingRefSource = await ReferralService.getPendingReferralSource();
+
       final requestData = {
         'phone': normalizedPhone,
         'otp': otp,
         if (type != null) 'type': type,
+        if (pendingRefToken != null) 'referral_token': pendingRefToken,
+        if (pendingRefToken != null) 'referral_source': pendingRefSource,
       };
       
       final response = await _dio.post(
         'auth/verify-otp',
         data: requestData,
       );
+      
+      // Clear pending referral after successful verification
+      if (pendingRefToken != null) {
+        await ReferralService.clearPendingReferral();
+      }
       
       // Note: Referral code is now handled exclusively in the register API
       // as per user request ("Referall code must be in register Not login")
@@ -1872,6 +1883,69 @@ class ApiService {
   /// Clear pending referral code from storage (after successful OTP verification)
   Future<void> _clearPendingReferralCode() async {
     await ReferralService.clearPendingReferralCode();
+  }
+
+  // ==================== DAILY CHALLENGE & LUCKY WHEEL ====================
+
+  /// GET /api/challenge/daily
+  /// Returns today's countdown, prize info, my invitations, and top 5 participants leaderboard
+  Future<Map<String, dynamic>> getDailyChallenge() async {
+    try {
+      final token = await StorageService.getToken();
+      final response = await _dio.get(
+        'challenge/daily',
+        options: Options(
+          headers: {
+            if (token != null) 'Authorization': 'Bearer $token',
+          },
+        ),
+      );
+      return response.data;
+    } catch (e) {
+      if (kDebugMode) print('❌ Error fetching daily challenge: $e');
+      throw _handleError(e);
+    }
+  }
+
+  /// GET /api/wheel/status
+  /// Returns user's remaining spins, referral link, and wheel prizes
+  Future<Map<String, dynamic>> getLuckyWheelStatus() async {
+    try {
+      final token = await StorageService.getToken();
+      final response = await _dio.get(
+        'wheel/status',
+        options: Options(
+          headers: {
+            if (token != null) 'Authorization': 'Bearer $token',
+          },
+        ),
+      );
+      return response.data;
+    } catch (e) {
+      if (kDebugMode) print('❌ Error fetching wheel status: $e');
+      throw _handleError(e);
+    }
+  }
+
+  /// POST /api/wheel/spin
+  /// Spins wheel, decrements 1 spin, and receives awarded prize
+  Future<Map<String, dynamic>> spinLuckyWheel() async {
+    try {
+      final token = await StorageService.getToken();
+      if (token == null) throw Exception('Not authenticated');
+      final response = await _dio.post(
+        'wheel/spin',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+          },
+        ),
+      );
+      return response.data;
+    } catch (e) {
+      if (kDebugMode) print('❌ Error spinning wheel: $e');
+      throw _handleError(e);
+    }
   }
 
   // ==================== WALLET METHODS ====================
