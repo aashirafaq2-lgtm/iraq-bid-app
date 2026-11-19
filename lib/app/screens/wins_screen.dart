@@ -716,17 +716,5 @@ class _ExactWonCard extends StatelessWidget {
         ),
       ),
     );
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
