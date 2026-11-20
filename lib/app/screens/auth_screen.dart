@@ -129,13 +129,12 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
       _animController.forward();
 
       if (mounted) {
-        final debugOtp = res['debug_otp'] ?? '123456';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               LanguageService.isArabic
-                  ? 'رمز التأكيد السريع: $debugOtp (تم إرساله إلى $_normalizedPhone)'
-                  : 'Verification code: $debugOtp (Sent to $_normalizedPhone)',
+                  ? 'تم إرسال رمز التحقق إلى $_normalizedPhone عبر الواتساب والرسائل'
+                  : 'Verification code sent to $_normalizedPhone via SMS & WhatsApp',
             ),
             backgroundColor: const Color(0xFF0284C7),
             behavior: SnackBarBehavior.floating,
@@ -343,8 +342,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
   Future<void> _handleResendOTP() async {
     setState(() => _isLoading = true);
     try {
-      final res = await apiService.sendOTP(_normalizedPhone, type: 'login');
-      final debugOtp = res['debug_otp'] ?? '123456';
+      await apiService.sendOTP(_normalizedPhone, type: 'login');
       setState(() {
         _isLoading = false;
         for (var c in _otpControllers) {
@@ -358,11 +356,15 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
           SnackBar(
             content: Text(
               LanguageService.isArabic
-                  ? 'رمز التأكيد السريع: $debugOtp (تم إرساله إلى $_normalizedPhone)'
-                  : 'Verification code: $debugOtp (Sent to $_normalizedPhone)',
+                  ? 'تم إعادة إرسال رمز التحقق إلى $_normalizedPhone'
+                  : 'Verification code resent to $_normalizedPhone',
             ),
             backgroundColor: const Color(0xFF0284C7),
             behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
