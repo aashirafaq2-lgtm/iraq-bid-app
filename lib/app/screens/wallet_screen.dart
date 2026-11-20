@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../services/language_service.dart';
@@ -73,6 +74,124 @@ class _WalletScreenState extends State<WalletScreen> {
     if (value is int) return value.toDouble();
     if (value is String) return double.tryParse(value) ?? 0.0;
     return 0.0;
+  }
+
+  void _showDepositModal(BuildContext context, bool isArabic) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE2E8F0),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  icon: const Icon(Icons.close_rounded, size: 22, color: Color(0xFF64748B)),
+                ),
+              ],
+            ),
+            Container(
+              width: 76,
+              height: 76,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFFF1F2),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.headset_mic_rounded,
+                  size: 42,
+                  color: Color(0xFF3B82F6),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              isArabic ? 'التواصل مع قسم الحسابات' : 'Contact the Accounts Department',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF0F172A),
+                letterSpacing: -0.3,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                isArabic
+                    ? 'لشحن رصيدك أو إيداع الأموال في محفظتك، يرجى التواصل مباشرة مع قسم الحسابات عبر الواتساب.'
+                    : 'To deposit funds or top up your wallet, please contact the Accounts Department via WhatsApp.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF64748B),
+                  height: 1.5,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  HapticFeedback.lightImpact();
+                  Navigator.of(ctx).pop();
+                  String number = '+9647700000000';
+                  try {
+                    final res = await apiService.getPublicSettings();
+                    if (res['data']?['accounts_whatsapp_number'] != null) {
+                      number = res['data']['accounts_whatsapp_number'].toString();
+                    }
+                  } catch (_) {}
+                  final cleanNum = number.replaceAll(RegExp(r'[^\d]'), '');
+                  final waUri = Uri.parse('https://wa.me/$cleanNum?text=${Uri.encodeComponent(isArabic ? "مرحباً قسم الحسابات، أريد شحن رصيد محفظتي في مزاد العراق" : "Hello Accounts Dept, I want to deposit funds into my Iraq Bid wallet.")}');
+                  if (await canLaunchUrl(waUri)) {
+                    await launchUrl(waUri, mode: LaunchMode.externalApplication);
+                  }
+                },
+                icon: const Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 20),
+                label: Text(
+                  isArabic ? 'تواصل عبر واتساب' : 'Contact via WhatsApp',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF16A34A),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -275,13 +394,7 @@ class _WalletScreenState extends State<WalletScreen> {
                           child: ElevatedButton(
                             onPressed: () {
                               HapticFeedback.lightImpact();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(isArabic
-                                      ? 'بوابة الشحن البنكي والماستر كارد قيد التفعيل'
-                                      : 'Card top-up gateway activating soon'),
-                                ),
-                              );
+                              _showDepositModal(context, isArabic);
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF0066FF),
