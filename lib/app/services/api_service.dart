@@ -441,12 +441,14 @@ class ApiService {
     String phone,
     String otp, {
     String? type,
+    String? name,
   }) async {
     try {
       if (kDebugMode) {
         print('🔐 Verifying OTP via Twilio Verify');
         print('📱 Phone: $phone');
         print('📱 Type: $type');
+        print('👤 Name: $name');
         print('🔑 OTP: [hidden]');
       }
       
@@ -472,6 +474,7 @@ class ApiService {
         'phone': normalizedPhone,
         'otp': otp,
         if (type != null) 'type': type,
+        if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
         if (pendingRefToken != null) 'referral_token': pendingRefToken,
         if (pendingRefToken != null) 'referral_source': pendingRefSource,
       };
