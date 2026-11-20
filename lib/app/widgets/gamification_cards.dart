@@ -587,7 +587,7 @@ class _LuckyWheelInteractiveModalState extends State<LuckyWheelInteractiveModal>
   }
 
   void _shareReferralLink() {
-    final link = _referralLink ?? 'https://iraqbid.net/join?ref=${_referralToken ?? "WHEEL"}&source=wheel';
+    final link = _referralLink ?? 'https://admin.iraqbid.net/join?ref=${_referralToken ?? "WHEEL"}&source=wheel';
     final msg = widget.isArabic
         ? 'دوّر عجلة الحظ اليومية واربح رصيد مزايدة وجوائز حصرية مجاناً!\nانضم عبر الرابط:\n$link'
         : 'Spin the Daily Lucky Wheel for free bid credits & exclusive rewards!\nJoin here: $link';
@@ -1175,7 +1175,7 @@ class _DailyChallengeInteractiveModalState extends State<DailyChallengeInteracti
   String _formatSeconds() => (_timeLeftSeconds % 60).toString().padLeft(2, '0');
 
   void _shareDailyChallengeLink() {
-    final link = _referralLink ?? 'https://iraqbid.net/join?ref=${_referralToken ?? "CHALLENGE"}&source=challenge';
+    final link = _referralLink ?? 'https://admin.iraqbid.net/join?ref=${_referralToken ?? "CHALLENGE"}&source=challenge';
     final msg = widget.isArabic
         ? 'شارك في التحدي اليومي على تطبيق IRAQ BID واربح هاتف ذكي ورصيد 500\$!\nانضم الآن عبر الرابط الخاص:\n$link'
         : 'Join the Daily Challenge on IRAQ BID to win a Smartphone + 500 Credits today!\nJoin via personal link:\n$link';
