@@ -154,7 +154,12 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
     try {
       Map<String, dynamic> response;
       try {
-        response = await apiService.verifyOTP(_normalizedPhone, otp, type: 'register');
+        response = await apiService.verifyOTP(
+          _normalizedPhone,
+          otp,
+          type: 'register',
+          name: _fullNameController.text.trim(),
+        );
       } catch (err) {
         if (otp == '123456') {
           response = {'success': true, 'token': 'demo_token_reg'};
