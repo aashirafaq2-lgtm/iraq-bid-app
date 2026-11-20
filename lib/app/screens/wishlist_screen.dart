@@ -217,7 +217,356 @@ class _WishlistScreenState extends State<WishlistScreen> {
     );
   }
 
-  // 1. HEADER (Back Arrow + "My Favorites" / "المفضلة")
+  void _openBuyNowModal(ProductModel product) {
+    final isArabic = _isArabic;
+    final int buyNowPrice = (product.buyNowPrice ?? (product.currentBid ?? product.startingPrice) * 1.5).toInt();
+    final pTitle = _arabicTitles[product.title] ?? product.title;
+
+    bool isSubmitting = false;
+    final TextEditingController couponController = TextEditingController();
+    String? appliedCouponCode;
+    double discountAmount = 0.0;
+    double finalPrice = buyNowPrice.toDouble();
+    bool isValidatingCoupon = false;
+    String? couponMessage;
+    bool couponSuccess = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (modalCtx, setModalState) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    isArabic ? 'تأكيد الشراء الفوري' : 'Confirm Buy Now',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7ED),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFFED7AA)),
+                ),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        width: 56,
+                        height: 56,
+                        color: Colors.white,
+                        child: CachedNetworkImage(
+                          imageUrl: ImageUrlHelper.fixImageUrl(product.imageUrl),
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) => const Icon(Icons.shopping_bag_outlined, color: Color(0xFFEA580C)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            pTitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Text(
+                                isArabic ? 'سعر الشراء الفوري: ' : 'Buy Now Price: ',
+                                style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                              ),
+                              if (appliedCouponCode != null) ...[
+                                Text(
+                                  '\$$buyNowPrice',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF94A3B8),
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              Text(
+                                '\$${finalPrice.toStringAsFixed(finalPrice.truncateToDouble() == finalPrice ? 0 : 2)}',
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFFEA580C)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Influencer Coupon Input Box
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.confirmation_number_outlined, size: 16, color: Color(0xFF0284C7)),
+                        const SizedBox(width: 6),
+                        Text(
+                          isArabic ? 'كود خصم المؤثرين' : 'Influencer Discount Coupon',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF334155)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: couponController,
+                            textCapitalization: TextCapitalization.characters,
+                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.8),
+                            decoration: InputDecoration(
+                              hintText: isArabic ? 'أدخل كود الخصم (مثال: AHMED10)' : 'Enter coupon code (e.g. AHMED10)',
+                              hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
+                              filled: true,
+                              fillColor: Colors.white,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF0284C7))),
+                              isDense: true,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: isValidatingCoupon
+                              ? null
+                              : () async {
+                                  final code = couponController.text.trim().toUpperCase();
+                                  if (code.isEmpty) return;
+                                  setModalState(() {
+                                    isValidatingCoupon = true;
+                                    couponMessage = null;
+                                  });
+                                  try {
+                                    final res = await apiService.validateCoupon(
+                                      couponCode: code,
+                                      amount: buyNowPrice.toDouble(),
+                                      productId: product.id,
+                                    );
+                                    if (res['success'] == true) {
+                                      final disc = (res['data']?['discount_amount'] as num?)?.toDouble() ?? 0.0;
+                                      final finalP = (res['data']?['final_amount'] as num?)?.toDouble() ?? (buyNowPrice - disc);
+                                      setModalState(() {
+                                        appliedCouponCode = code;
+                                        discountAmount = disc;
+                                        finalPrice = finalP;
+                                        couponSuccess = true;
+                                        couponMessage = isArabic ? 'تم تطبيق خصم \$$disc بنجاح!' : 'Coupon applied! Saved \$$disc';
+                                        isValidatingCoupon = false;
+                                      });
+                                    } else {
+                                      setModalState(() {
+                                        couponSuccess = false;
+                                        couponMessage = res['message'] ?? (isArabic ? 'كوبون غير صالح' : 'Invalid coupon');
+                                        isValidatingCoupon = false;
+                                      });
+                                    }
+                                  } catch (err) {
+                                    setModalState(() {
+                                      couponSuccess = false;
+                                      couponMessage = isArabic ? 'كوبون غير صالح أو منتهي الصلاحية' : 'Invalid or expired coupon';
+                                      isValidatingCoupon = false;
+                                    });
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0284C7),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            elevation: 0,
+                          ),
+                          child: isValidatingCoupon
+                              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : Text(isArabic ? 'تطبيق' : 'Apply', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                        ),
+                      ],
+                    ),
+                    if (couponMessage != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        couponMessage!,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: couponSuccess ? const Color(0xFF16A34A) : const Color(0xFFEF4444),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Confirm Purchase Button
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          setModalState(() => isSubmitting = true);
+                          try {
+                            final res = await apiService.buyNow(
+                              productId: product.id,
+                              couponCode: appliedCouponCode,
+                            );
+                            if (mounted) {
+                              Navigator.pop(ctx);
+                              HapticFeedback.heavyImpact();
+                              _showBuyNowSuccess(isArabic, res['data']?['orderNumber'] ?? 'Confirmed');
+                              _loadWishlist();
+                            }
+                          } catch (e) {
+                            setModalState(() => isSubmitting = false);
+                            final msg = e.toString().replaceFirst('Exception: ', '');
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(msg),
+                                  backgroundColor: const Color(0xFFEF4444),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEA580C),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                  child: isSubmitting
+                      ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.flash_on_rounded, size: 20, color: Colors.white),
+                            const SizedBox(width: 8),
+                            Text(
+                              isArabic
+                                  ? 'تأكيد الشراء الفوري (\$$finalPrice)'
+                                  : 'Confirm Buy Now (\$$finalPrice)',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showBuyNowSuccess(bool isArabic, String orderNumber) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        actionsPadding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDCFCE7),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                isArabic ? 'تم تأكيد الشراء!' : 'Purchase Confirmed!',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          isArabic
+              ? 'تهانينا! تم تسجيل طلب الشراء الفوري بنجاح.\nرقم الطلب: $orderNumber\nسيتم التواصل معك لتأكيد التوصيل.'
+              : 'Congratulations! Your Buy Now order has been confirmed successfully.\nOrder #: $orderNumber\nOur delivery team will contact you shortly.',
+          style: const TextStyle(fontSize: 14, color: Color(0xFF475569), height: 1.5),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.go('/wins');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF16A34A),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text(
+              isArabic ? 'عرض طلباتي' : 'View My Orders',
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -519,6 +868,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
             arabicTitles: _arabicTitles,
             onRemove: () => _removeFromWishlist(product.id),
             onTap: () => context.push('/product/${product.id}'),
+            onBuyNow: () => _openBuyNowModal(product),
           );
         },
       ),
@@ -534,6 +884,7 @@ class _ExactWishlistCard extends StatelessWidget {
   final Map<String, String> arabicTitles;
   final VoidCallback onRemove;
   final VoidCallback onTap;
+  final VoidCallback onBuyNow;
 
   const _ExactWishlistCard({
     required this.product,
@@ -541,6 +892,7 @@ class _ExactWishlistCard extends StatelessWidget {
     required this.arabicTitles,
     required this.onRemove,
     required this.onTap,
+    required this.onBuyNow,
   });
 
   String _t(String en, String ar) => isArabic ? ar : en;
@@ -772,23 +1124,9 @@ class _ExactWishlistCard extends StatelessWidget {
 
                         const SizedBox(width: 6),
 
-                        // Orange "Add to Cart" Button
+                        // Orange "Buy Now" Button
                         GestureDetector(
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  isArabic
-                                      ? 'تمت إضافة $title إلى السلة'
-                                      : 'Added $title to Cart',
-                                ),
-                                duration: const Duration(seconds: 1),
-                                backgroundColor: const Color(0xFFEA580C),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          },
+                          onTap: onBuyNow,
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                             decoration: BoxDecoration(
@@ -799,13 +1137,13 @@ class _ExactWishlistCard extends StatelessWidget {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 const Icon(
-                                  Icons.shopping_cart_outlined,
+                                  Icons.flash_on_rounded,
                                   size: 12,
                                   color: Colors.white,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  _t('Add to Cart', 'أضف للسلة'),
+                                  _t('Buy Now', 'شراء فوري'),
                                   style: const TextStyle(
                                     fontSize: 9.5,
                                     fontWeight: FontWeight.w800,
