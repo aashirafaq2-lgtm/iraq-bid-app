@@ -291,16 +291,32 @@ class _BidsScreenState extends State<BidsScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildList() {
+    final now = DateTime.now();
+    // Finished auctions must not stay in active bids (Must be gone when time finishes)
+    final activeBids = _bids.where((bid) {
+      if (bid.auctionEndTime != null && !bid.auctionEndTime!.isAfter(now)) {
+        return false;
+      }
+      if (bid.hoursLeft != null && bid.hoursLeft! <= 0) {
+        return false;
+      }
+      return true;
+    }).toList();
+
+    if (activeBids.isEmpty) {
+      return _buildEmpty();
+    }
+
     return RefreshIndicator(
       color: const Color(0xFF0284C7),
       onRefresh: _loadBids,
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
         padding: const EdgeInsets.fromLTRB(16, 6, 16, 20),
-        itemCount: _bids.length,
+        itemCount: activeBids.length,
         separatorBuilder: (_, __) => const SizedBox(height: 14),
         itemBuilder: (context, index) {
-          final bid = _bids[index];
+          final bid = activeBids[index];
           return _ExactBidCard(
             bid: bid,
             isArabic: _isArabic,
