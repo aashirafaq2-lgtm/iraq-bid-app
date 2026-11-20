@@ -128,8 +128,8 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
           SnackBar(
             content: Text(
               LanguageService.isArabic
-                  ? 'رمز التأكيد السريع: 123456 (تم إرساله إلى $_normalizedPhone)'
-                  : 'Verification code: 123456 (Sent to $_normalizedPhone)',
+                  ? 'تم إرسال رمز التحقق إلى $_normalizedPhone عبر الواتساب والرسائل'
+                  : 'Verification code sent to $_normalizedPhone via SMS & WhatsApp',
             ),
             backgroundColor: const Color(0xFF0284C7),
             behavior: SnackBarBehavior.floating,
