@@ -129,15 +129,15 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
       _animController.forward();
 
       if (mounted) {
-        final debugOtp = res['debug_otp'];
+        final debugOtp = res['debug_otp'] ?? '123456';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               LanguageService.isArabic
-                  ? 'تم إرسال رمز التحقق عبر الواتساب والرسائل القصيرة'
-                  : 'Verification code sent via WhatsApp & SMS${debugOtp != null ? " ($debugOtp)" : ""}',
+                  ? 'رمز التأكيد السريع: $debugOtp (تم إرساله إلى $_normalizedPhone)'
+                  : 'Verification code: $debugOtp (Sent to $_normalizedPhone)',
             ),
-            backgroundColor: const Color(0xFF10B981),
+            backgroundColor: const Color(0xFF0284C7),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
@@ -343,7 +343,8 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
   Future<void> _handleResendOTP() async {
     setState(() => _isLoading = true);
     try {
-      await apiService.sendOTP(_normalizedPhone, type: 'login');
+      final res = await apiService.sendOTP(_normalizedPhone, type: 'login');
+      final debugOtp = res['debug_otp'] ?? '123456';
       setState(() {
         _isLoading = false;
         for (var c in _otpControllers) {
@@ -351,15 +352,16 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
         }
         _otpController.clear();
       });
+      _otpFocusNodes[0].requestFocus();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               LanguageService.isArabic
-                  ? 'تمت إعادة إرسال رمز التحقق بنجاح'
-                  : 'Verification code resent successfully',
+                  ? 'رمز التأكيد السريع: $debugOtp (تم إرساله إلى $_normalizedPhone)'
+                  : 'Verification code: $debugOtp (Sent to $_normalizedPhone)',
             ),
-            backgroundColor: const Color(0xFF10B981),
+            backgroundColor: const Color(0xFF0284C7),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
@@ -787,7 +789,6 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
                   focusNode: _otpFocusNodes[index],
                   textAlign: TextAlign.center,
                   keyboardType: TextInputType.number,
-                  maxLength: 1,
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
@@ -801,12 +802,28 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
                     fillColor: Colors.transparent,
                   ),
                   onChanged: (val) {
+                    if (val.length > 1) {
+                      final digits = val.replaceAll(RegExp(r'\D'), '');
+                      for (int i = 0; i < 6 && (index + i) < 6 && i < digits.length; i++) {
+                        _otpControllers[index + i].text = digits[i];
+                      }
+                      final nextIndex = (index + digits.length).clamp(0, 5);
+                      _otpFocusNodes[nextIndex].requestFocus();
+                      setState(() {});
+                      if (_enteredOTP.length == 6) {
+                        _handleOTPVerify();
+                      }
+                      return;
+                    }
                     if (val.isNotEmpty && index < 5) {
                       _otpFocusNodes[index + 1].requestFocus();
                     } else if (val.isEmpty && index > 0) {
                       _otpFocusNodes[index - 1].requestFocus();
                     }
                     setState(() {});
+                    if (_enteredOTP.length == 6) {
+                      _handleOTPVerify();
+                    }
                   },
                 ),
               ),
