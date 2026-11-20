@@ -147,11 +147,19 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
       if (mounted) {
         if (e is DioException && e.response?.statusCode == 404) {
           final resData = e.response?.data;
-          final isUserNotFound = resData is Map && (resData['code'] == 'USER_NOT_FOUND' || (resData['message']?.toString().contains("account") ?? false));
+          final isUserNotFound = resData is Map && (resData['code'] == 'USER_NOT_FOUND' || (resData['message']?.toString().contains("account") ?? false) || (resData['message']?.toString().contains("مسجل") ?? false));
           if (isUserNotFound) {
             _showNoAccountDialog();
             return;
           }
+        }
+        if (e is DioException && e.response?.statusCode == 403) {
+          final resData = e.response?.data;
+          final msg = (resData is Map && resData['message'] != null)
+              ? resData['message'].toString()
+              : (LanguageService.isArabic ? 'تم حظر هذا الحساب أو تعليقه من قبل الإدارة.' : 'This account has been banned or suspended by admin.');
+          _showError(LanguageService.isArabic ? 'حساب محظور' : 'Account Suspended', msg);
+          return;
         }
 
         String errorMsg = AppLocalizations.of(context)?.failedToSendOtp ?? 'Failed to send OTP';
