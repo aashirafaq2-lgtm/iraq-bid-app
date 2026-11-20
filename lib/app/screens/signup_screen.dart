@@ -6,6 +6,23 @@ import '../services/storage_service.dart';
 import '../services/referral_service.dart';
 import '../services/language_service.dart';
 
+// 18 Iraqi Governorates
+const List<String> _iraqiGovernorates = [
+  'Baghdad', 'Basra', 'Erbil', 'Najaf', 'Karbala',
+  'Sulaymaniyah', 'Duhok', 'Kirkuk', 'Anbar', 'Babil',
+  'Diyala', 'Wasit', 'Maysan', 'Dhi Qar', 'Muthanna',
+  'Qadisiyyah', 'Saladin', 'Nineveh',
+];
+
+const Map<String, String> _iraqiGovernoratesAr = {
+  'Baghdad': 'بغداد', 'Basra': 'البصرة', 'Erbil': 'أربيل',
+  'Najaf': 'النجف', 'Karbala': 'كربلاء', 'Sulaymaniyah': 'السليمانية',
+  'Duhok': 'دهوك', 'Kirkuk': 'كركوك', 'Anbar': 'الأنبار',
+  'Babil': 'بابل', 'Diyala': 'ديالى', 'Wasit': 'واسط',
+  'Maysan': 'ميسان', 'Dhi Qar': 'ذي قار', 'Muthanna': 'المثنى',
+  'Qadisiyyah': 'القادسية', 'Saladin': 'صلاح الدين', 'Nineveh': 'نينوى',
+};
+
 class SignupScreen extends StatefulWidget {
   final String? selectedRole;
   
@@ -183,11 +200,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
           name: _fullNameController.text.trim(),
         );
       } catch (err) {
-        if (otp == '123456') {
-          response = {'success': true, 'token': 'demo_token_reg'};
-        } else {
-          rethrow;
-        }
+        rethrow;
       }
       final accessToken = response['accessToken'] ?? response['token'];
       if (accessToken != null) {
@@ -356,6 +369,111 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
         backgroundColor: const Color(0xFFEF4444),
         behavior: SnackBarBehavior.floating,
       ),
+    );
+  }
+
+  void _showCityPicker(BuildContext context, bool isAr) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Drag handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.location_city_rounded, color: Color(0xFF0284C7), size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    isAr ? 'اختر المحافظة' : 'Select Province',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Grid of cities
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  childAspectRatio: 2.5,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemCount: _iraqiGovernorates.length,
+                itemBuilder: (_, i) {
+                  final city = _iraqiGovernorates[i];
+                  final displayName = isAr ? (_iraqiGovernoratesAr[city] ?? city) : city;
+                  final isSelected = _cityController.text == city;
+                  return GestureDetector(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _cityController.text = city);
+                      Navigator.of(ctx).pop();
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFF0284C7) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isSelected ? const Color(0xFF0284C7) : const Color(0xFFE2E8F0),
+                          width: isSelected ? 1.5 : 1.0,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          displayName,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: isSelected ? Colors.white : const Color(0xFF334155),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -590,12 +708,19 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                   children: [
                     _buildInputLabel(isAr ? 'المحافظة' : 'Province / City', Icons.location_city_outlined),
                     const SizedBox(height: 8),
-                    _buildTextField(
-                      controller: _cityController,
-                      hint: isAr ? 'بغداد' : 'Baghdad',
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? (isAr ? 'مطلوب' : 'Required')
-                          : null,
+                    // City Dropdown (18 Iraqi Governorates)
+                    GestureDetector(
+                      onTap: () => _showCityPicker(context, isAr),
+                      child: AbsorbPointer(
+                        child: _buildTextField(
+                          controller: _cityController,
+                          hint: isAr ? 'اختر المحافظة' : 'Select Province',
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? (isAr ? 'مطلوب' : 'Required')
+                              : null,
+                          suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF64748B)),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -832,6 +957,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
     required TextEditingController controller,
     required String hint,
     String? Function(String?)? validator,
+    Widget? suffixIcon,
   }) {
     return TextFormField(
       controller: controller,
@@ -843,6 +969,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
         filled: true,
         fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        suffixIcon: suffixIcon,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
