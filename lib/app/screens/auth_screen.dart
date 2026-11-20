@@ -373,10 +373,6 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
           ),
         );
       }
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-      }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
