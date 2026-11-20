@@ -113,7 +113,29 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
       try {
         await apiService.sendOTP(_normalizedPhone, type: 'register');
       } catch (e) {
-        print('Notice: Gateway reported: $e. Moving to confirmation step.');
+        if (e is DioException && e.response?.statusCode == 400) {
+          final resData = e.response?.data;
+          final isAlreadyExists = resData is Map && (resData['code'] == 'USER_ALREADY_EXISTS' || (resData['message']?.toString().contains("مسجل") ?? false) || (resData['message']?.toString().contains("already registered") ?? false));
+          if (isAlreadyExists) {
+            setState(() => _isLoading = false);
+            _showAccountExistsDialog();
+            return;
+          }
+        }
+        if (e is DioException && e.response?.statusCode == 403) {
+          setState(() => _isLoading = false);
+          _showError(
+            LanguageService.isArabic ? 'حساب محظور' : 'Account Banned',
+            LanguageService.isArabic ? 'تم حظر هذا الحساب من قبل الإدارة.' : 'This account has been banned by admin.',
+          );
+          return;
+        }
+        setState(() => _isLoading = false);
+        _showError(
+          LanguageService.isArabic ? 'خطأ في الإرسال' : 'Delivery Error',
+          LanguageService.isArabic ? 'تعذر إرسال رمز التحقق. يرجى المحاولة لاحقاً.' : 'Failed to send verification code. Please try again.',
+        );
+        return;
       }
       
       setState(() {
@@ -248,6 +270,82 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
         }
       }
     });
+  }
+
+  void _showAccountExistsDialog() {
+    final isAr = LanguageService.isArabic;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: Colors.white,
+          titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+          actionsPadding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.account_circle_rounded, color: Color(0xFF2563EB), size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  isAr ? 'الحساب مسجل بالفعل!' : 'Account Already Exists!',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            isAr
+                ? 'هذا الرقم مسجل لدينا بالفعل. يرجى تسجيل الدخول إلى حسابك.'
+                : 'This phone number is already registered. Please log in to your account.',
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF475569),
+              height: 1.5,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(
+                isAr ? 'إلغاء' : 'Cancel',
+                style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                context.go('/auth');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1E88E5),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+              child: Text(
+                isAr ? 'تسجيل الدخول' : 'Go to Login',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showError(String title, String message) {
