@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import '../services/language_service.dart';
 import '../utils/image_url_helper.dart';
-import '../widgets/bottom_nav_bar.dart';
 
 class WinsScreen extends StatefulWidget {
   const WinsScreen({super.key});
@@ -296,6 +295,7 @@ class _WinsScreenState extends State<WinsScreen> {
             bid: bid,
             isArabic: _isArabic,
             index: index,
+            onCouponApplied: _loadWonBids,
             onTap: () {
               final pId = bid['product_id'] ?? bid['productId'] ?? bid['id'];
               if (pId != null) {
@@ -316,12 +316,14 @@ class _ExactWonCard extends StatelessWidget {
   final bool isArabic;
   final int index;
   final VoidCallback onTap;
+  final VoidCallback onCouponApplied;
 
   const _ExactWonCard({
     required this.bid,
     required this.isArabic,
     required this.index,
     required this.onTap,
+    required this.onCouponApplied,
   });
 
   String _t(String en, String ar) => isArabic ? ar : en;
@@ -603,7 +605,7 @@ class _ExactWonCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            couponCode!,
+                            couponCode,
                             style: const TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
@@ -612,20 +614,71 @@ class _ExactWonCard extends StatelessWidget {
                             ),
                           ),
                         )
-                      else
-                        // Empty Dash Pill (Grey)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 1.5),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(6),
+                      else if (isDelivered)
+                        // Empty Dash Pill (Grey) - Disabled when delivered
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(_t(
+                                  'Coupons cannot be applied to delivered orders',
+                                  'لا يمكن تطبيق كود الخصم بعد استلام الطلب',
+                                )),
+                                backgroundColor: const Color(0xFFEF4444),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              '—',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF94A3B8),
+                              ),
+                            ),
                           ),
-                          child: const Text(
-                            '—',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF94A3B8),
+                        )
+                      else
+                        // Interactive Pill - Tap to input coupon before shipping
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            _showCouponBottomSheet(context, originalVal, title);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFFCBD5E1), width: 0.8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  '—',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.edit_outlined,
+                                  size: 11,
+                                  color: Color(0xFF0284C7),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -714,6 +767,276 @@ class _ExactWonCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showCouponBottomSheet(BuildContext context, double originalPrice, String productTitle) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _ApplyCouponModal(
+        bid: bid,
+        originalPrice: originalPrice,
+        productTitle: productTitle,
+        isArabic: isArabic,
+        onCouponApplied: onCouponApplied,
+      ),
+    );
+  }
+}
+
+// ─── Modal Bottom Sheet: Apply Coupon Before Shipping ────────────────────────
+
+class _ApplyCouponModal extends StatefulWidget {
+  final Map<String, dynamic> bid;
+  final double originalPrice;
+  final String productTitle;
+  final bool isArabic;
+  final VoidCallback onCouponApplied;
+
+  const _ApplyCouponModal({
+    required this.bid,
+    required this.originalPrice,
+    required this.productTitle,
+    required this.isArabic,
+    required this.onCouponApplied,
+  });
+
+  @override
+  State<_ApplyCouponModal> createState() => _ApplyCouponModalState();
+}
+
+class _ApplyCouponModalState extends State<_ApplyCouponModal> {
+  final _couponController = TextEditingController();
+  bool _isSubmitting = false;
+  String? _errorMessage;
+
+  String _t(String en, String ar) => widget.isArabic ? ar : en;
+
+  @override
+  void dispose() {
+    _couponController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _applyCoupon() async {
+    final code = _couponController.text.trim().toUpperCase();
+    if (code.isEmpty) {
+      setState(() => _errorMessage = _t('Please enter a coupon code', 'يرجى إدخال كود الخصم'));
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final orderId = widget.bid['order_id'] ?? widget.bid['orderId'];
+      final productId = widget.bid['product_id'] ?? widget.bid['productId'] ?? widget.bid['id'];
+
+      final int? numOrderId = orderId != null ? int.tryParse(orderId.toString()) : null;
+      final int? numProductId = productId != null ? int.tryParse(productId.toString()) : null;
+
+      final res = await apiService.applyCoupon(
+        couponCode: code,
+        orderId: numOrderId,
+        productId: numProductId,
+      );
+
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        Navigator.of(context).pop();
+
+        widget.onCouponApplied();
+
+        final discount = res['data']?['discount_amount'] ?? '';
+        final msg = discount.toString().isNotEmpty
+            ? _t('Coupon $code applied! You saved \$$discount', 'تم تطبيق الكوبون $code بنجاح! وفرت \$$discount')
+            : _t('Coupon $code applied successfully!', 'تم تطبيق الكوبون $code بنجاح!');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(child: Text(msg, style: const TextStyle(fontWeight: FontWeight.w600))),
+              ],
+            ),
+            backgroundColor: const Color(0xFF16A34A),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+          _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    return Container(
+      padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottomInset),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Drag Handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE2E8F0),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.confirmation_number_outlined, size: 20, color: Color(0xFF0284C7)),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    _t('Apply Influencer Coupon', 'تطبيق كود خصم المؤثرين'),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+              IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF94A3B8)),
+                splashRadius: 20,
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Product Summary
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.productTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${_t("Order Amount", "قيمة الطلب")}: \$${widget.originalPrice.toStringAsFixed(widget.originalPrice.truncateToDouble() == widget.originalPrice ? 0 : 2)}',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Coupon Code Input
+          TextField(
+            controller: _couponController,
+            textCapitalization: TextCapitalization.characters,
+            autofocus: true,
+            style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.0, color: Color(0xFF0F172A)),
+            decoration: InputDecoration(
+              labelText: _t('Influencer Coupon Code', 'كود خصم المؤثر'),
+              hintText: _t('e.g. AHMED10, NOOR10', 'مثال: AHMED10'),
+              prefixIcon: const Icon(Icons.local_offer_outlined, color: Color(0xFF0284C7)),
+              filled: true,
+              fillColor: const Color(0xFFF8FAFC),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF0284C7), width: 1.8),
+              ),
+            ),
+            onSubmitted: (_) => _applyCoupon(),
+          ),
+
+          if (_errorMessage != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              _errorMessage!,
+              style: const TextStyle(fontSize: 12, color: Color(0xFFEF4444), fontWeight: FontWeight.w600),
+            ),
+          ],
+
+          const SizedBox(height: 18),
+
+          // Action Button
+          ElevatedButton(
+            onPressed: _isSubmitting ? null : _applyCoupon,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0284C7),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 0,
+            ),
+            child: _isSubmitting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : Text(
+                    _t('Apply Coupon', 'تطبيق الكود'),
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                  ),
+          ),
+        ],
       ),
     );
   }
