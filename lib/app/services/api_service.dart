@@ -2513,6 +2513,16 @@ class ApiService {
 
   /// Handle errors and return user-friendly messages
   /// Specifically checks for network connectivity issues
+  /// Fetch public settings (e.g. Accounts WhatsApp Number)
+  Future<Map<String, dynamic>> getPublicSettings() async {
+    try {
+      final response = await _dio.get('/system-settings/public');
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      return {'success': false, 'data': {}};
+    }
+  }
+
   String _handleError(dynamic error) {
     // Check if this is a network connectivity error
     if (NetworkUtils.isNetworkError(error)) {
