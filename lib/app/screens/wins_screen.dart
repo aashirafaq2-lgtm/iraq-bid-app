@@ -428,28 +428,7 @@ class _ExactWonCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Left Square Product Image (Clean 110x110)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Container(
-                width: 106,
-                height: 106,
-                color: const Color(0xFFF8FAFC),
-                child: imageUrl.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: imageUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        errorWidget: (_, __, ___) => const Center(
-                          child: Icon(Icons.image_not_supported_outlined, color: Color(0xFF94A3B8)),
-                        ),
-                      )
-                    : const Center(
-                        child: Icon(Icons.image_not_supported_outlined, color: Color(0xFF94A3B8)),
-                      ),
-              ),
-            ),
+            _buildProductThumbnail(imageUrl, title),
 
             const SizedBox(width: 12),
 
@@ -655,28 +634,28 @@ class _ExactWonCard extends StatelessWidget {
                             _showCouponBottomSheet(context, originalVal, title);
                           },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 1.5),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
+                              color: const Color(0xFFF0FDF4),
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: const Color(0xFFCBD5E1), width: 0.8),
+                              border: Border.all(color: const Color(0xFF86EFAC), width: 1.0),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Text(
-                                  '—',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF64748B),
-                                  ),
+                                const Icon(
+                                  Icons.confirmation_number_outlined,
+                                  size: 11,
+                                  color: Color(0xFF16A34A),
                                 ),
                                 const SizedBox(width: 4),
-                                const Icon(
-                                  Icons.edit_outlined,
-                                  size: 11,
-                                  color: Color(0xFF0284C7),
+                                Text(
+                                  _t('+ Add Coupon', '+ إضافة كود خصم'),
+                                  style: const TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF16A34A),
+                                  ),
                                 ),
                               ],
                             ),
@@ -767,6 +746,58 @@ class _ExactWonCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildProductThumbnail(String imageUrl, String title) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: 106,
+        height: 106,
+        color: const Color(0xFFF8FAFC),
+        child: imageUrl.isNotEmpty
+            ? CachedNetworkImage(
+                imageUrl: imageUrl,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                errorWidget: (_, __, ___) => _buildFallbackThumbnail(title),
+              )
+            : _buildFallbackThumbnail(title),
+      ),
+    );
+  }
+
+  Widget _buildFallbackThumbnail(String title) {
+    IconData iconData = Icons.shopping_bag_outlined;
+    Color iconColor = const Color(0xFF0284C7);
+    Color bgColor = const Color(0xFFF0F9FF);
+    final lower = title.toLowerCase();
+    if (lower.contains('iphone') || lower.contains('phone')) {
+      iconData = Icons.phone_iphone_rounded;
+      iconColor = const Color(0xFF475569);
+      bgColor = const Color(0xFFF1F5F9);
+    } else if (lower.contains('playstation') || lower.contains('ps5')) {
+      iconData = Icons.sports_esports_rounded;
+      iconColor = const Color(0xFF2563EB);
+      bgColor = const Color(0xFFEFF6FF);
+    } else if (lower.contains('rolex') || lower.contains('watch')) {
+      iconData = Icons.watch_rounded;
+      iconColor = const Color(0xFFD97706);
+      bgColor = const Color(0xFFFEF3C7);
+    } else if (lower.contains('vacuum') || lower.contains('dyson')) {
+      iconData = Icons.cleaning_services_rounded;
+      iconColor = const Color(0xFF7C3AED);
+      bgColor = const Color(0xFFFAF5FF);
+    }
+
+    return Container(
+      color: bgColor,
+      child: Center(
+        child: Icon(iconData, size: 38, color: iconColor),
       ),
     );
   }
@@ -1003,6 +1034,42 @@ class _ApplyCouponModalState extends State<_ApplyCouponModal> {
               ),
             ),
             onSubmitted: (_) => _applyCoupon(),
+          ),
+
+          const SizedBox(height: 10),
+
+          // Quick Coupon Suggestions (AHMED10, NOOR10, ALI10)
+          Row(
+            children: [
+              Text(
+                _t('Quick codes:', 'كوبونات سريعة:'),
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Wrap(
+                  spacing: 6,
+                  children: ['AHMED10', 'NOOR10', 'ALI10'].map((code) => GestureDetector(
+                    onTap: () {
+                      _couponController.text = code;
+                      _applyCoupon();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFF86EFAC)),
+                      ),
+                      child: Text(
+                        code,
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF16A34A)),
+                      ),
+                    ),
+                  )).toList(),
+                ),
+              ),
+            ],
           ),
 
           if (_errorMessage != null) ...[

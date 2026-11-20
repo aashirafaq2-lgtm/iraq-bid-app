@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/language_service.dart';
+import '../services/storage_service.dart';
 
 class LuxuryProductCard extends StatefulWidget {
   final String id;
@@ -92,10 +94,29 @@ class _LuxuryProductCardState extends State<LuxuryProductCard> {
   @override
   void initState() {
     super.initState();
+    _checkFavoriteStatus();
     _calculateRemainingTime();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) _calculateRemainingTime();
     });
+  }
+
+  void _checkFavoriteStatus() async {
+    final pId = int.tryParse(widget.id);
+    if (pId != null) {
+      final isFav = await StorageService.isInWishlist(pId);
+      if (mounted) {
+        setState(() => _isFavorite = isFav);
+      }
+    }
+  }
+
+  Future<void> _handleFavoriteToggle() async {
+    final pId = int.tryParse(widget.id);
+    if (pId == null) return;
+    HapticFeedback.lightImpact();
+    setState(() => _isFavorite = !_isFavorite);
+    await StorageService.toggleWishlist(pId);
   }
 
   @override
@@ -251,7 +272,7 @@ class _LuxuryProductCardState extends State<LuxuryProductCard> {
                   right: isArabic ? null : 5,
                   left: isArabic ? 5 : null,
                   child: GestureDetector(
-                    onTap: () => setState(() => _isFavorite = !_isFavorite),
+                    onTap: _handleFavoriteToggle,
                     child: Container(
                       width: 26,
                       height: 26,
