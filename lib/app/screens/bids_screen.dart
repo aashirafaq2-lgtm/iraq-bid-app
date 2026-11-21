@@ -375,8 +375,11 @@ class _ExactBidCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final title = bid.productTitle ?? _t('Auction Item', 'عنصر المزاد');
     final imageUrl = bid.productImage != null ? ImageUrlHelper.fixImageUrl(bid.productImage!) : '';
-    final amountVal = bid.amount.toInt();
+    final amountVal = (bid.productCurrentBid != null && bid.productCurrentBid! > 0)
+        ? bid.productCurrentBid!.toInt()
+        : bid.amount.toInt();
     final timeLeftStr = _formatTimeLeft();
+    final isWinning = bid.isHighestBidder;
 
     return GestureDetector(
       onTap: () {
@@ -478,18 +481,21 @@ class _ExactBidCard extends StatelessWidget {
                           ],
                         ),
 
-                        // Animated Winning Badge with Trophy
+                        // Animated Winning or Outbid Badge
                         ScaleTransition(
-                          scale: scaleAnim,
+                          scale: isWinning ? scaleAnim : const AlwaysStoppedAnimation(1.0),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFDCFCE7),
+                              color: isWinning ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFF86EFAC), width: 1.0),
+                              border: Border.all(
+                                color: isWinning ? const Color(0xFF86EFAC) : const Color(0xFFFCA5A5),
+                                width: 1.0,
+                              ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF22C55E).withOpacity(0.15),
+                                  color: (isWinning ? const Color(0xFF22C55E) : const Color(0xFFEF4444)).withOpacity(0.15),
                                   blurRadius: 6,
                                   offset: const Offset(0, 2),
                                 ),
@@ -498,18 +504,18 @@ class _ExactBidCard extends StatelessWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(
-                                  Icons.emoji_events_rounded,
+                                Icon(
+                                  isWinning ? Icons.emoji_events_rounded : Icons.trending_down_rounded,
                                   size: 14,
-                                  color: Color(0xFF16A34A),
+                                  color: isWinning ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  _t('Winning', 'فائز'),
-                                  style: const TextStyle(
+                                  isWinning ? _t('Winning', 'فائز') : _t('Outbid', 'تم تجاوزك'),
+                                  style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w800,
-                                    color: Color(0xFF15803D),
+                                    color: isWinning ? const Color(0xFF15803D) : const Color(0xFFB91C1C),
                                   ),
                                 ),
                               ],

@@ -438,7 +438,7 @@ class _ExactWonCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 1. Top Row: Category Blue Pill & 3-Dots Menu (...)
+                  // 1. Top Row: Category Blue Pill & Item Number & 3-Dots
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -457,10 +457,33 @@ class _ExactWonCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const Icon(
-                        Icons.more_horiz_rounded,
-                        size: 18,
-                        color: Color(0xFF94A3B8),
+                      Row(
+                        children: [
+                          // Item/Order Number Badge
+                          if ((bid['order_id'] ?? bid['orderId'] ?? bid['product_id'] ?? bid['productId']) != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                              margin: const EdgeInsets.only(right: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF7ED),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFFDBA74), width: 0.8),
+                              ),
+                              child: Text(
+                                '#${bid['order_id'] ?? bid['orderId'] ?? bid['product_id'] ?? bid['productId']}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFFEA580C),
+                                ),
+                              ),
+                            ),
+                          const Icon(
+                            Icons.more_horiz_rounded,
+                            size: 18,
+                            color: Color(0xFF94A3B8),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -1034,42 +1057,6 @@ class _ApplyCouponModalState extends State<_ApplyCouponModal> {
               ),
             ),
             onSubmitted: (_) => _applyCoupon(),
-          ),
-
-          const SizedBox(height: 10),
-
-          // Quick Coupon Suggestions (AHMED10, NOOR10, ALI10)
-          Row(
-            children: [
-              Text(
-                _t('Quick codes:', 'كوبونات سريعة:'),
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Wrap(
-                  spacing: 6,
-                  children: ['AHMED10', 'NOOR10', 'ALI10'].map((code) => GestureDetector(
-                    onTap: () {
-                      _couponController.text = code;
-                      _applyCoupon();
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF0FDF4),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFF86EFAC)),
-                      ),
-                      child: Text(
-                        code,
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF16A34A)),
-                      ),
-                    ),
-                  )).toList(),
-                ),
-              ),
-            ],
           ),
 
           if (_errorMessage != null) ...[

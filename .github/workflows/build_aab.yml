@@ -1,0 +1,51 @@
+name: Build Android Release (AAB & APK)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Android App Bundle (AAB for Play Store)
+        run: |
+          flutter build appbundle --release --dart-define=API_BASE_URL=https://api.mazaadati.com/api/
+
+      - name: Build Release APK (For Direct Testing)
+        run: |
+          flutter build apk --release --dart-define=API_BASE_URL=https://api.mazaadati.com/api/
+
+      - name: Upload Android App Bundle (AAB)
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk

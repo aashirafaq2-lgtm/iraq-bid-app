@@ -386,82 +386,37 @@ class _WalletScreenState extends State<WalletScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 46,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              HapticFeedback.lightImpact();
-                              _showDepositModal(context, isArabic);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF0066FF),
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.add_circle_outline_rounded,
-                                    size: 16),
-                                const SizedBox(width: 6),
-                                Text(
-                                  isArabic ? 'شحن الرصيد' : 'Deposit',
-                                  style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800),
-                                ),
-                              ],
-                            ),
-                          ),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        _showDepositModal(context, isArabic);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0066FF),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: SizedBox(
-                          height: 46,
-                          child: OutlinedButton(
-                            onPressed: () {
-                              HapticFeedback.lightImpact();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(isArabic
-                                      ? 'السحب متاح عبر المحافظ المحلية (زين كاش / قيد البرمجة)'
-                                      : 'Withdrawal via ZainCash coming soon'),
-                                ),
-                              );
-                            },
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(
-                                  color: Color(0xFF475569), width: 1.5),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.arrow_outward_rounded,
-                                    size: 16),
-                                const SizedBox(width: 6),
-                                Text(
-                                  isArabic ? 'سحب الأرباح' : 'Withdraw',
-                                  style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800),
-                                ),
-                              ],
-                            ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.add_circle_outline_rounded,
+                              size: 16),
+                          const SizedBox(width: 6),
+                          Text(
+                            isArabic ? 'شحن الرصيد' : 'Deposit',
+                            style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ],
               ),
