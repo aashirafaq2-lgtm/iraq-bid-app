@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/product_model.dart';
+import '../models/bid_model.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../services/socket_service.dart';
@@ -46,6 +47,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
   // Winning status state & user's max bid
   bool _isWinning = false;
   double? _userMaxBid;
+
+  // Real-time Bidders & Bids stats for client requirement
+  List<BidModel> _productBids = [];
+  int _uniqueBiddersCount = 0;
+  bool _isLoadingBids = false;
 
   // Pulse & Confetti Glow Animation for Winning Card
   late AnimationController _winningAnimController;
@@ -162,6 +168,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
         apiService.getProductById(productId),
         StorageService.isInWishlist(productId),
         apiService.getAllProducts(limit: 10),
+        apiService.getBidsByProduct(productId).catchError((_) => <BidModel>[]),
       ]);
 
       if (mounted) {
@@ -169,6 +176,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
         final inWish = results[1] as bool;
         final prodsMap = results[2] as Map<String, dynamic>;
         final allProds = prodsMap['products'] as List<ProductModel>? ?? [];
+        final fetchedBids = results[3] as List<BidModel>? ?? [];
+
+        // Calculate unique bidders count
+        final uniqueBidders = fetchedBids.map((b) => b.userId).toSet().length;
 
         final currentBidVal = (prod.currentBid ?? prod.startingPrice).toInt();
         // Default bid stepper is current bid + 1
@@ -193,6 +204,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
           _isLiked = inWish;
           _bidAmount = nextBid;
           _similarProducts = allProds.where((p) => p.id != prod.id).toList();
+          _productBids = fetchedBids;
+          _uniqueBiddersCount = uniqueBidders;
           _isLoading = false;
           _isWinning = isUserWinning;
           _userMaxBid = userWinningMax;
@@ -1304,6 +1317,179 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
             ),
           ),
 
+          const SizedBox(height: 12),
+
+          // 6.1 WINNER CARD & BIDDERS / BIDS METRICS (Client Feature matching Screenshots 1 & 2)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: [
+                // Winner Row Card (Light Mint Green with Trophy and Down Chevron)
+                InkWell(
+                  onTap: () => _showBiddersListModal(context, isArabic),
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5E9), // Light Mint Green
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFC8E6C9), width: 1.2),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.emoji_events_rounded, color: Color(0xFF1B5E20), size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          isArabic ? 'الفائز: ' : 'Winner: ',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1B5E20),
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            (p.highestBidderName != null && p.highestBidderName!.trim().isNotEmpty)
+                                ? p.highestBidderName!
+                                : (_productBids.isNotEmpty && _productBids.first.bidderName != null)
+                                    ? _productBids.first.bidderName!
+                                    : (isArabic ? 'لا يوجد مزايدين حتى الآن' : 'No bidders yet'),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF1B5E20),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: Color(0xFF2E7D32),
+                          size: 24,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                // 2 Stat Badges: Bidders count & Bids count
+                Row(
+                  children: [
+                    // Bidders Count
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _showBiddersListModal(context, isArabic),
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.02),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.people_outline_rounded, size: 16, color: Color(0xFF1E293B)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    isArabic ? 'المزايدين' : 'Bidders',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${_uniqueBiddersCount > 0 ? _uniqueBiddersCount : (p.highestBidderName != null ? 1 : 0)}',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    // Total Bids Count
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _showBiddersListModal(context, isArabic),
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.02),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.gavel_outlined, size: 16, color: Color(0xFF1E293B)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    isArabic ? 'المزايدات' : 'Bids',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${_productBids.isNotEmpty ? _productBids.length : (p.totalBids ?? 0)}',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
           const SizedBox(height: 16),
 
           // 7. 3-COLUMN METRICS (Real Price | Product ID | Share)
@@ -2161,6 +2347,180 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
           ],
         ),
       ),
+    );
+  }
+
+  // --- BIDDERS LIST BOTTOM SHEET (Screenshot 2 Pixel-Perfect) ---
+  void _showBiddersListModal(BuildContext context, bool isArabic) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (bottomSheetCtx) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Grab handle
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Title Row: Icon + "Bidders List" + Close (X)
+              Row(
+                children: [
+                  const Icon(Icons.people_outline_rounded, size: 22, color: Color(0xFF0F172A)),
+                  const SizedBox(width: 8),
+                  Text(
+                    isArabic ? 'قائمة المزايدين' : 'Bidders List',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.pop(bottomSheetCtx),
+                    icon: const Icon(Icons.close_rounded, size: 22, color: Color(0xFF64748B)),
+                    splashRadius: 20,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Bidders items list
+              if (_productBids.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 36),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.gavel_rounded, size: 48, color: Color(0xFFCBD5E1)),
+                      const SizedBox(height: 12),
+                      Text(
+                        isArabic ? 'لا توجد مزايدات سابقة حتى الآن' : 'No bids placed yet',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _productBids.length,
+                    separatorBuilder: (c, i) => const SizedBox(height: 8),
+                    itemBuilder: (c, index) {
+                      final bid = _productBids[index];
+                      final isFirst = index == 0; // Highest bidder
+                      final formattedDate = '${bid.createdAt.year}-${bid.createdAt.month.toString().padLeft(2, '0')}-${bid.createdAt.day.toString().padLeft(2, '0')} ${bid.createdAt.hour.toString().padLeft(2, '0')}:${bid.createdAt.minute.toString().padLeft(2, '0')}';
+
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isFirst ? const Color(0xFFE8F5E9) : const Color(0xFFFAFAFA),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isFirst ? const Color(0xFFC8E6C9) : const Color(0xFFF1F5F9),
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            // Bid Price (Bold Left)
+                            SizedBox(
+                              width: 60,
+                              child: Text(
+                                '\$${bid.amount.toInt()}',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                            ),
+
+                            // Middle: Bidder Name + Date
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      if (isFirst) ...[
+                                        const Icon(Icons.emoji_events_rounded, color: Color(0xFF1B5E20), size: 16),
+                                        const SizedBox(width: 4),
+                                      ],
+                                      Expanded(
+                                        child: Text(
+                                          bid.bidderName ?? (isArabic ? 'مزايد' : 'Bidder'),
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: isFirst ? FontWeight.w900 : FontWeight.w700,
+                                            color: isFirst ? const Color(0xFF1B5E20) : const Color(0xFF1E293B),
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    formattedDate,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: isFirst ? const Color(0xFF388E3C) : const Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Right: Blue Circle Gavel Icon Badge
+                            Container(
+                              width: 34,
+                              height: 34,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF0284C7),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.gavel_rounded,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

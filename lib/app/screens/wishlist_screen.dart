@@ -1121,39 +1121,6 @@ class _ExactWishlistCard extends StatelessWidget {
                             ),
                           ),
                         ),
-
-                        const SizedBox(width: 6),
-
-                        // Orange "Buy Now" Button
-                        GestureDetector(
-                          onTap: onBuyNow,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEA580C), // Orange Button
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.flash_on_rounded,
-                                  size: 12,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _t('Buy Now', 'شراء فوري'),
-                                  style: const TextStyle(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ],

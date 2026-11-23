@@ -29,7 +29,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       final user = await apiService.getProfile();
-      final balance = await StorageService.getRewardBalance();
+      await StorageService.getRewardBalance();
 
       if (mounted) {
         setState(() {
@@ -43,7 +43,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final name = await StorageService.getUserName();
       final phone = await StorageService.getUserPhone();
       final ref = await StorageService.getReferralCode();
-      final balance = await StorageService.getRewardBalance();
+      await StorageService.getRewardBalance();
 
       if (mounted) {
         setState(() {
@@ -249,6 +249,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ],
 
+                        const SizedBox(height: 16),
+
+                        // Wallet Balance Card
+                        FutureBuilder<Map<String, dynamic>>(
+                          future: apiService.getWallet(),
+                          builder: (context, snapshot) {
+                            final balance = (snapshot.data?['balance'] ?? 0.0);
+                            final balanceVal = (balance is num) ? balance.toDouble() : double.tryParse(balance.toString()) ?? 0.0;
+                            final iqd = (balanceVal * 1500).toStringAsFixed(0);
+                            return GestureDetector(
+                              onTap: () => context.push('/wallet'),
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF0F172A), Color(0xFF1E3A5F)],
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF0F172A).withValues(alpha: 0.18),
+                                      blurRadius: 14,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF0066FF).withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF38BDF8), size: 22),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            isArabic ? 'رصيد المحفظة' : 'Wallet Balance',
+                                            style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '\$${balanceVal.toStringAsFixed(2)}  ≈  $iqd IQD',
+                                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.3),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(Icons.chevron_right_rounded, color: Color(0xFF38BDF8), size: 22),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+
                         const SizedBox(height: 20),
 
                         // Referral Code Pill
@@ -415,30 +479,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Column(
         children: [
-          _MenuItem(
-            icon: Icons.gavel_rounded,
-            iconColor: const Color(0xFF0284C7),
-            bgColor: const Color(0xFFF0F9FF),
-            title: isArabic ? 'مزاداتي النشطة' : 'My Active Bids',
-            onTap: () => context.push('/buyer-bidding-history'),
-          ),
-          const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
-          _MenuItem(
-            icon: Icons.check_circle_outline_rounded,
-            iconColor: const Color(0xFF16A34A),
-            bgColor: const Color(0xFFF0FDF4),
-            title: isArabic ? 'المزادات الرابحة' : 'Won Auctions',
-            onTap: () => context.go('/wins'),
-          ),
-          const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
-          _MenuItem(
-            icon: Icons.favorite_rounded,
-            iconColor: const Color(0xFFEF4444),
-            bgColor: const Color(0xFFFEF2F2),
-            title: isArabic ? 'قائمة المفضلة' : 'My Wishlist',
-            onTap: () => context.go('/wishlist'),
-          ),
-          const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
           _MenuItem(
             icon: Icons.share_rounded,
             iconColor: const Color(0xFF0284C7),

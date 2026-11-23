@@ -13,6 +13,8 @@ class BidModel {
   final DateTime? auctionEndTime;
   final double? hoursLeft;
   final String? auctionStatus;
+  final bool isHighestBidder;
+  final double? productCurrentBid;
 
   BidModel({
     required this.id,
@@ -29,6 +31,8 @@ class BidModel {
     this.auctionEndTime,
     this.hoursLeft,
     this.auctionStatus,
+    this.isHighestBidder = true,
+    this.productCurrentBid,
   });
 
   // Helper function to safely parse numeric values
@@ -60,6 +64,8 @@ class BidModel {
           : null,
       hoursLeft: _parseDouble(json['hours_left']),
       auctionStatus: json['auction_status'] as String?,
+      isHighestBidder: json['is_highest_bidder'] == null ? true : (json['is_highest_bidder'] == true || json['is_highest_bidder'].toString() == 'true'),
+      productCurrentBid: _parseDouble(json['product_current_bid']),
     );
   }
 
@@ -79,6 +85,8 @@ class BidModel {
       'auction_end_time': auctionEndTime?.toIso8601String(),
       'hours_left': hoursLeft,
       'auction_status': auctionStatus,
+      'is_highest_bidder': isHighestBidder,
+      'product_current_bid': productCurrentBid,
     };
   }
 }

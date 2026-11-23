@@ -16,6 +16,7 @@ class LuxuryProductCard extends StatefulWidget {
   final String? category;
   final String? tag;
   final String? specialDescription;
+  final bool isSingleColumn;
   final VoidCallback onTap;
 
   const LuxuryProductCard({
@@ -29,6 +30,7 @@ class LuxuryProductCard extends StatefulWidget {
     this.category,
     this.tag,
     this.specialDescription,
+    this.isSingleColumn = false,
     required this.onTap,
   });
 
@@ -180,6 +182,163 @@ class _LuxuryProductCardState extends State<LuxuryProductCard> {
     final customTag = widget.specialDescription ?? widget.tag;
     final displayTag = (customTag != null && customTag.trim().isNotEmpty) ? customTag.trim() : null;
     final displayTitle = isArabic ? (_arabicTitles[widget.title] ?? widget.title) : widget.title;
+
+    // --- 1-BY-1 FULL HORIZONTAL/VERTICAL CARD MATCHING SCREENSHOT 2 ---
+    if (widget.isSingleColumn) {
+      return GestureDetector(
+        onTap: widget.onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0F172A).withValues(alpha: 0.06),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Full Width Product Image with Wishlist Heart
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    child: AspectRatio(
+                      aspectRatio: 1.45,
+                      child: CachedNetworkImage(
+                        imageUrl: widget.imageUrl,
+                        fit: BoxFit.cover,
+                        memCacheWidth: 600,
+                        placeholder: (context, url) => Container(color: const Color(0xFFF8FAFC)),
+                        errorWidget: (context, url, error) => Container(
+                          color: const Color(0xFFF8FAFC),
+                          child: const Icon(Icons.image_not_supported_outlined, size: 36, color: Color(0xFF94A3B8)),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Wishlist Button
+                  Positioned(
+                    top: 10,
+                    right: isArabic ? null : 10,
+                    left: isArabic ? 10 : null,
+                    child: GestureDetector(
+                      onTap: _handleFavoriteToggle,
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.95),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          _isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          size: 18,
+                          color: _isFavorite ? const Color(0xFFEF4444) : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Bottom Details exactly matching Screenshot 2
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title
+                    Text(
+                      displayTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Current Bid & Countdown Timer Row
+                    Row(
+                      children: [
+                        const Icon(Icons.gavel_rounded, size: 16, color: Color(0xFFE11D48)),
+                        const SizedBox(width: 4),
+                        Text(
+                          isArabic ? 'المزايدة الحالية' : 'Current Bid',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '\$${widget.currentBid}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFFE11D48),
+                          ),
+                        ),
+                        const Spacer(),
+                        const Icon(Icons.timer_outlined, size: 14, color: Color(0xFF64748B)),
+                        const SizedBox(width: 4),
+                        Text(
+                          _formatTimer(),
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF475569),
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Full Width Orange "Buy Now $220" Button matching Screenshot 2
+                    SizedBox(
+                      width: double.infinity,
+                      height: 42,
+                      child: ElevatedButton(
+                        onPressed: widget.onTap,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF6B00),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: Text(
+                          isArabic ? 'اشترِ الآن \$${widget.currentBid * 2}' : 'Buy Now  \$${widget.currentBid * 2}',
+                          style: const TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return GestureDetector(
       onTap: widget.onTap,

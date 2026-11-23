@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../services/api_service.dart';
 import '../models/product_model.dart';
@@ -8,7 +9,6 @@ import '../widgets/bottom_nav_bar.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/luxury_banner_carousel.dart';
 import '../widgets/luxury_product_card.dart';
-import '../widgets/gamification_cards.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   List<ProductModel> _products = [];
   bool _isLoading = true;
   Timer? _searchDebounce;
+  int _gridColumns = 2; // 3 = 3-in-line, 2 = 2-in-line, 1 = 1-in-line
 
   // In-memory cache for ultra-fast instant UI rendering
   static final Map<String, List<ProductModel>> _categoryCache = {};
@@ -161,14 +162,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                           child: RepaintBoundary(child: LuxuryBannerCarousel()),
                         ),
 
-                        const SizedBox(height: 14),
-
-                        // 5b. Dual Gamification Cards ("Lucky Wheel" & "Daily Challenge")
-                        RepaintBoundary(child: GamificationCardsWidget(isArabic: isArabic)),
-
                         const SizedBox(height: 18),
 
-                        // 6. Section Header
+                        // 6. Section Header with View Layout Switcher (3-grid, 2-grid, 1-grid)
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Row(
@@ -191,13 +187,31 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                                   letterSpacing: -0.2,
                                 ),
                               ),
+                              const Spacer(),
+                              // Layout Selector [ 3 | 2 | 1 ]
+                              Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _buildLayoutButton(columns: 3, icon: Icons.grid_on_rounded),
+                                    _buildLayoutButton(columns: 2, icon: Icons.grid_view_rounded),
+                                    _buildLayoutButton(columns: 1, icon: Icons.crop_square_rounded),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),
 
                         const SizedBox(height: 12),
 
-                        // 7. Grid of Live Auction Cards (Matches 2-Column Reference Layout)
+                        // 7. Grid of Live Auction Cards
                         _buildProductGrid(isArabic),
 
                         const SizedBox(height: 100),
@@ -374,13 +388,13 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     );
   }
 
-  // --- DUAL HERO ACTION CARDS ("Our Product" & "Sellers") ---
+  // --- 3 HERO ACTION CARDS ("Our Product", "Sellers", & "VIP Bidders") ---
   Widget _buildDualActionCards(bool isArabic) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          // 1. Our Product Card (Luxury Warm Cream/Gold Gradient)
+          // 1. Our Product Card (Warm Cream Gradient)
           Expanded(
             child: GestureDetector(
               onTap: () {
@@ -399,28 +413,21 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               },
               child: Container(
                 height: 52,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFFFFF7ED), Color(0xFFFFEDD5)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: const Color(0xFFFED7AA), width: 1.2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFF97316).withOpacity(0.08),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
                 ),
                 child: Row(
                   children: [
                     Container(
-                      width: 32,
-                      height: 32,
+                      width: 26,
+                      height: 26,
                       decoration: BoxDecoration(
                         color: const Color(0xFFF97316).withOpacity(0.12),
                         shape: BoxShape.circle,
@@ -428,24 +435,25 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                       child: const Icon(
                         Icons.verified_rounded,
                         color: Color(0xFFEA580C),
-                        size: 18,
+                        size: 15,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         isArabic ? 'منتجاتنا' : 'Our Product',
                         style: const TextStyle(
-                          fontSize: 14,
+                          fontSize: 11,
                           fontWeight: FontWeight.w800,
                           color: Color(0xFF1E293B),
-                          letterSpacing: -0.2,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     Icon(
                       isArabic ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
-                      size: 20,
+                      size: 16,
                       color: const Color(0xFF1E293B),
                     ),
                   ],
@@ -454,7 +462,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             ),
           ),
 
-          const SizedBox(width: 12),
+          const SizedBox(width: 6),
 
           // 2. Sellers Card (Soft Rose/Ruby Gradient)
           Expanded(
@@ -464,28 +472,21 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               },
               child: Container(
                 height: 52,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFFFFF1F2), Color(0xFFFFE4E6)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: const Color(0xFFFECDD3), width: 1.2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFE11D48).withOpacity(0.08),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
                 ),
                 child: Row(
                   children: [
                     Container(
-                      width: 32,
-                      height: 32,
+                      width: 26,
+                      height: 26,
                       decoration: BoxDecoration(
                         color: const Color(0xFFE11D48).withOpacity(0.12),
                         shape: BoxShape.circle,
@@ -493,28 +494,133 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                       child: const Icon(
                         Icons.storefront_rounded,
                         color: Color(0xFFE11D48),
-                        size: 18,
+                        size: 15,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         isArabic ? 'البائعين' : 'Sellers',
                         style: const TextStyle(
-                          fontSize: 14,
+                          fontSize: 11,
                           fontWeight: FontWeight.w800,
                           color: Color(0xFFE11D48),
-                          letterSpacing: -0.2,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     Icon(
                       isArabic ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
-                      size: 20,
+                      size: 16,
                       color: const Color(0xFFE11D48),
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 6),
+
+          // 3. VIP Bidders Card (With "Coming Soon" badge)
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                _showVipComingSoonDialog(isArabic);
+              },
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    height: 52,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF4C1D95), Color(0xFF2E1065)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.5), width: 1.2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF7C3AED).withValues(alpha: 0.2),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFFD700), size: 18),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isArabic ? 'مزايدي VIP' : 'VIP Bidders',
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                isArabic ? 'قريباً' : 'Coming Soon',
+                                style: const TextStyle(
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFFFFD700),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          isArabic ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
+                          size: 16,
+                          color: const Color(0xFFFFD700),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Floating "Coming Soon" Pill
+                  Positioned(
+                    top: -6,
+                    right: isArabic ? null : 6,
+                    left: isArabic ? 6 : null,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFFD700), Color(0xFFF59E0B)],
+                        ),
+                        borderRadius: BorderRadius.circular(6),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        isArabic ? 'قريباً' : 'COMING SOON',
+                        style: const TextStyle(
+                          color: Color(0xFF1E0A3C),
+                          fontSize: 7.5,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -524,6 +630,91 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   }
 
 
+
+  void _showVipComingSoonDialog(bool isArabic) {
+    HapticFeedback.lightImpact();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E0A3C),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: const BorderSide(color: Color(0xFFFFD700), width: 1.5),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: Color(0xFF2E1065),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFFD700), size: 24),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                isArabic ? 'مزايدات VIP الحصرية' : 'VIP Bidders Arena',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFFD700), Color(0xFFF59E0B)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                isArabic ? 'قريباً في التحديث القادم' : 'COMING SOON IN NEXT UPDATE',
+                style: const TextStyle(
+                  color: Color(0xFF1E0A3C),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 12,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              isArabic
+                  ? 'يتم حالياً تطوير وتجهيز مزادات VIP الحصرية والحاويات الفاخرة بأحدث التقنيات التفاعلية ثلاثية الأبعاد. ستتوفر في التحديث القادم مباشرة!'
+                  : 'Exclusive VIP Bidders Arena & Luxury Container Auctions are currently undergoing final upgrades and will be launched in the upcoming update. Stay tuned!',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFFCBD5E1),
+                fontSize: 12.5,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFFD700),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 11),
+              ),
+              child: Text(
+                isArabic ? 'حسناً' : 'Got it',
+                style: const TextStyle(color: Color(0xFF1E0A3C), fontWeight: FontWeight.w900, fontSize: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   // --- HORIZONTAL CATEGORY PILLS ---
   Widget _buildCategoryPills(bool isArabic) {
@@ -586,6 +777,31 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     );
   }
 
+  Widget _buildLayoutButton({required int columns, required IconData icon}) {
+    final isSelected = _gridColumns == columns;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        setState(() {
+          _gridColumns = columns;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF0284C7) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          size: 16,
+          color: isSelected ? Colors.white : const Color(0xFF64748B),
+        ),
+      ),
+    );
+  }
+
   // --- PRODUCT GRID WIDGET ---
   Widget _buildProductGrid(bool isArabic) {
     if (_isLoading) {
@@ -613,16 +829,27 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       );
     }
 
+    // Dynamic aspect ratio & layout according to selected columns (3, 2, or 1)
+    final double childAspectRatio;
+    if (_gridColumns == 3) {
+      childAspectRatio = 0.54;
+    } else if (_gridColumns == 2) {
+      childAspectRatio = 0.68;
+    } else {
+      childAspectRatio = 0.88; // 1-in-line card with Buy Now button
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: GridView.builder(
+        key: ValueKey('grid_layout_$_gridColumns'),
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          childAspectRatio: 0.54,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 10,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: _gridColumns,
+          childAspectRatio: childAspectRatio,
+          crossAxisSpacing: _gridColumns == 1 ? 0 : 8,
+          mainAxisSpacing: 14,
         ),
         itemCount: _products.length,
         itemBuilder: (context, index) {
@@ -640,6 +867,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             endTime: p.auctionEndTime ?? DateTime.now().add(const Duration(hours: 24)),
             category: p.categoryName,
             specialDescription: p.specialDescription,
+            isSingleColumn: _gridColumns == 1,
             onTap: () => context.push('/product-details/${p.id}'),
           );
         },

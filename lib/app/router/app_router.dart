@@ -27,6 +27,8 @@ import '../screens/profile_setup_screen.dart';
 import '../screens/buyer_dashboard_screen.dart';
 import '../screens/live_sales_screen.dart';
 import '../screens/sellers_screen.dart';
+import '../screens/vip_containers_screen.dart';
+import '../screens/vip_live_arena_screen.dart';
 import '../models/product_model.dart';
 import '../services/storage_service.dart';
 import '../widgets/bottom_nav_bar.dart';
@@ -450,6 +452,20 @@ class AppRouter {
         path: '/privacy-policy',
         name: 'privacy-policy',
         builder: (context, state) => const PrivacyPolicyScreen(),
+      ),
+      GoRoute(
+        path: '/vip/containers',
+        name: 'vip-containers',
+        builder: (context, state) => const VipContainersScreen(),
+      ),
+      GoRoute(
+        path: '/vip/arena',
+        name: 'vip-arena',
+        builder: (context, state) {
+          final code = state.uri.queryParameters['code'] ?? '#G-102';
+          final watchOnly = state.uri.queryParameters['watchOnly'] == 'true';
+          return VipLiveArenaScreen(containerCode: code, watchOnly: watchOnly);
+        },
       ),
     ],
   );

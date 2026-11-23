@@ -2565,6 +2565,68 @@ class ApiService {
     }
     return error.toString();
   }
+
+  // --- VIP AUCTIONS & CONTAINERS API ---
+  Future<void> registerFcmToken(String fcmToken, String platform) async {
+    try {
+      final token = await StorageService.getToken();
+      await _dio.post(
+        'notifications/register-token',
+        data: {
+          'token': fcmToken,
+          'platform': platform,
+          'deviceName': 'Mobile App'
+        },
+        options: Options(headers: {
+          if (token != null) 'Authorization': 'Bearer $token',
+        }),
+      );
+    } catch (_) {}
+  }
+
+  Future<List<dynamic>> getVipContainers() async {
+    try {
+      final response = await _dio.get('vip/containers');
+      if (response.data['success'] == true && response.data['data'] != null) {
+        return response.data['data'] as List<dynamic>;
+      }
+      return [];
+    } catch (e) {
+      print('❌ [getVipContainers] Error: $e');
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>?> getVipArena(String containerCode) async {
+    try {
+      final response = await _dio.get('vip/containers/${Uri.encodeComponent(containerCode)}/arena');
+      if (response.data['success'] == true) {
+        return response.data['data'] as Map<String, dynamic>?;
+      }
+      return null;
+    } catch (e) {
+      print('❌ [getVipArena] Error: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getVipStatus() async {
+    try {
+      final token = await StorageService.getToken();
+      final response = await _dio.get(
+        'vip/status',
+        options: Options(headers: {
+          if (token != null) 'Authorization': 'Bearer $token',
+        }),
+      );
+      if (response.data['success'] == true) {
+        return response.data['data'] as Map<String, dynamic>?;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
 }
 
 // Singleton getter - uses static instance from ApiService class

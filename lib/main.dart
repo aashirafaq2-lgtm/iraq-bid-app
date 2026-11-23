@@ -16,6 +16,7 @@ import 'app/services/app_localizations.dart';
 import 'app/services/socket_service.dart';
 import 'app/services/notification_service.dart';
 import 'app/services/local_notification_service.dart';
+import 'app/services/fcm_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,6 +57,7 @@ void main() async {
     // Initialize New Services
     SocketService().init();
     NotificationService().init();
+    FcmNotificationService().init();
     await LocalNotificationService().init();
     
     runApp(const MyApp());

@@ -2,7 +2,7 @@ name: Bidmaster
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.0.4+15
+version: 1.0.5+16
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -33,6 +33,8 @@ dependencies:
   path: ^1.9.1
   app_links: ^6.1.1
   google_fonts: ^6.2.1
+  firebase_core: ^3.6.0
+  firebase_messaging: ^15.1.3
   
   # Added back missing dependencies
   flutter_animate: ^4.5.0

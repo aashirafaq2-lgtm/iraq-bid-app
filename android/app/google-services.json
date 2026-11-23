@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "682194733394",
+    "project_id": "iraq-bid-989fb",
+    "storage_bucket": "iraq-bid-989fb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:682194733394:android:725b2b6a704e5e5881528b",
+        "android_client_info": {
+          "package_name": "com.iraqbid.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBLZpHjpnbZvTjkBauWfJrCho3wtKODzLc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

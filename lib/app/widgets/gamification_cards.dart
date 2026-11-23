@@ -3,7 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:go_router/go_router.dart';
 import '../services/api_service.dart';
+import '../services/storage_service.dart';
 
 class GamificationCardsWidget extends StatefulWidget {
   final bool isArabic;
@@ -1174,7 +1176,56 @@ class _DailyChallengeInteractiveModalState extends State<DailyChallengeInteracti
   String _formatMinutes() => ((_timeLeftSeconds % 3600) ~/ 60).toString().padLeft(2, '0');
   String _formatSeconds() => (_timeLeftSeconds % 60).toString().padLeft(2, '0');
 
-  void _shareDailyChallengeLink() {
+  Future<void> _shareDailyChallengeLink() async {
+    final isLoggedIn = await StorageService.isLoggedIn();
+    if (!isLoggedIn) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.lock_outline_rounded, color: Color(0xFF0066FF), size: 24),
+              const SizedBox(width: 8),
+              Text(
+                widget.isArabic ? 'تسجيل الدخول مطلوب' : 'Login Required',
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              ),
+            ],
+          ),
+          content: Text(
+            widget.isArabic
+                ? 'يرجى تسجيل الدخول أو إنشاء حساب جديد لتتمكن من دعوة الأصدقاء والمشاركة في التحدي اليومي!'
+                : 'Please login or create an account to invite friends and compete in the Daily Challenge!',
+            style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(widget.isArabic ? 'إلغاء' : 'Cancel', style: const TextStyle(color: Color(0xFF94A3B8))),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.pop(context); // close modal
+                context.push('/login');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0066FF),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: Text(
+                widget.isArabic ? 'تسجيل الدخول' : 'Login / Register',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     final link = _referralLink ?? 'https://admin.iraqbid.net/join?ref=${_referralToken ?? "CHALLENGE"}&source=challenge';
     final msg = widget.isArabic
         ? 'شارك في التحدي اليومي على تطبيق IRAQ BID واربح هاتف ذكي ورصيد 500\$!\nانضم الآن عبر الرابط الخاص:\n$link'
