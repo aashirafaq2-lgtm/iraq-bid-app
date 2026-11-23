@@ -122,6 +122,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
     _autoSlideTimer?.cancel();
     _countdownTimer?.cancel();
     socketService.leaveProductRoom(widget.productId);
+    if (_userId != null) {
+      socketService.leaveUserRoom(_userId);
+    }
+    socketService.offBidUpdate();
+    socketService.offOutbid();
     super.dispose();
   }
 
@@ -137,20 +142,113 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
 
     socketService.init();
     socketService.joinProductRoom(widget.productId);
+    if (userId != null) {
+      socketService.joinUserRoom(userId);
+    }
+
+    // Direct instantaneous Outbid Listener for connected user
+    socketService.onOutbid((data) {
+      if (!mounted) return;
+      final outbidProdId = data['productId']?.toString();
+      if (outbidProdId == widget.productId) {
+        final newHighest = data['newHighestBid'];
+        final double newHighestVal = (newHighest is num)
+            ? newHighest.toDouble()
+            : double.tryParse(newHighest.toString()) ?? 0.0;
+
+        setState(() {
+          _isWinning = false; // IMMEDIATELY REMOVE WINNING STATUS!
+          if (_product != null && newHighestVal > 0) {
+            _product = _product!.copyWith(currentBid: newHighestVal);
+            if (_bidAmount <= newHighestVal.toInt()) {
+              _bidAmount = newHighestVal.toInt() + 1;
+            }
+          }
+        });
+
+        HapticFeedback.heavyImpact();
+        final isAr = LanguageService.isArabic;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 22),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isAr
+                        ? 'لقد تمت المزايدة عليك بمبلغ \$${newHighestVal.toInt()}! زايد الآن لاستعادة الصدارة.'
+                        : 'You’ve been outbid at \$${newHighestVal.toInt()}! Place a new bid now to win.',
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFFDC2626),
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    });
+
     socketService.onBidUpdate((data) {
       if (mounted) {
         // Instant real-time socket update for anyone watching the item
-        final newPrice = data['currentPrice'];
-        final totalB = data['totalBids'];
+        final rawProdId = data['productId'] ?? data['product_id'];
+        if (rawProdId != null && rawProdId.toString() != widget.productId) {
+          return; // Ignore if not for this product
+        }
+
+        final newPrice = data['currentPrice'] ?? data['current_bid'];
+        final totalB = data['totalBids'] ?? data['total_bids'];
+        final highestBidderId = data['highestBidderId'] ?? data['highest_bidder_id'];
+        final highestBidderName = data['highest_bidder_name'] ?? data['lastBidderName'];
+
         if (newPrice != null && _product != null) {
           final priceVal = (newPrice is num) ? newPrice.toDouble() : double.tryParse(newPrice.toString()) ?? _product!.currentBid;
+          final int newTotal = (totalB is int)
+              ? totalB
+              : int.tryParse(totalB?.toString() ?? '') ?? ((_product!.totalBids ?? 0) + 1);
+
+          final int? newHighestId = (highestBidderId is int)
+              ? highestBidderId
+              : int.tryParse(highestBidderId?.toString() ?? '');
+
+          // Instantly determine winning status without requiring network round-trip
+          final bool amIWinning = (_userId != null && newHighestId != null && _userId == newHighestId);
+
           setState(() {
             _product = _product!.copyWith(
               currentBid: priceVal,
-              totalBids: (totalB is int) ? totalB : (_product!.totalBids ?? 0) + 1,
+              totalBids: newTotal,
+              highestBidderId: newHighestId,
+              highestBidderName: highestBidderName?.toString(),
             );
+            _isWinning = amIWinning;
+            if (amIWinning && _userMaxBid == null) {
+              _userMaxBid = priceVal;
+            }
+
             if (_bidAmount <= (priceVal ?? 0).toInt()) {
               _bidAmount = (priceVal ?? 0).toInt() + 1;
+            }
+
+            // Also prepend to live bidding history if bid object supplied
+            if (data['bid'] != null && data['bid'] is Map) {
+              try {
+                final bidMap = Map<String, dynamic>.from(data['bid'] as Map);
+                final newBidObj = BidModel(
+                  id: int.tryParse(bidMap['id']?.toString() ?? '') ?? DateTime.now().millisecondsSinceEpoch,
+                  productId: int.tryParse(widget.productId) ?? 0,
+                  userId: int.tryParse(bidMap['user_id']?.toString() ?? '') ?? (newHighestId ?? 0),
+                  amount: priceVal ?? 0.0,
+                  createdAt: DateTime.tryParse(bidMap['created_at']?.toString() ?? '') ?? DateTime.now(),
+                  bidderName: highestBidderName?.toString(),
+                  isHighestBidder: true,
+                );
+                _productBids.insert(0, newBidObj);
+              } catch (_) {}
             }
           });
         }

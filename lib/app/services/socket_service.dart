@@ -50,6 +50,20 @@ class SocketService extends ChangeNotifier {
     });
   }
 
+  void joinUserRoom(dynamic userId) {
+    if (userId != null) {
+      socket?.emit('join_user', userId.toString());
+      if (kDebugMode) print('👤 Joined User Room: user_$userId');
+    }
+  }
+
+  void leaveUserRoom(dynamic userId) {
+    if (userId != null) {
+      socket?.emit('leave_user', userId.toString());
+      if (kDebugMode) print('👤 Left User Room: user_$userId');
+    }
+  }
+
   void joinProductRoom(String productId) {
     socket?.emit('join_room', productId);
     socket?.emit('join_product', productId);
@@ -63,10 +77,31 @@ class SocketService extends ChangeNotifier {
   }
 
   void onBidUpdate(Function(Map<String, dynamic>) callback) {
+    socket?.off('bid_updated'); // Clean any existing listener first to prevent duplicates
     socket?.on('bid_updated', (data) {
       if (kDebugMode) print('💰 Bid Updated via Socket: $data');
-      callback(Map<String, dynamic>.from(data));
+      if (data is Map) {
+        callback(Map<String, dynamic>.from(data));
+      }
     });
+  }
+
+  void offBidUpdate() {
+    socket?.off('bid_updated');
+  }
+
+  void onOutbid(Function(Map<String, dynamic>) callback) {
+    socket?.off('outbid');
+    socket?.on('outbid', (data) {
+      if (kDebugMode) print('🚨 Outbid Event via Socket: $data');
+      if (data is Map) {
+        callback(Map<String, dynamic>.from(data));
+      }
+    });
+  }
+
+  void offOutbid() {
+    socket?.off('outbid');
   }
 
   void disposeSocket() {
