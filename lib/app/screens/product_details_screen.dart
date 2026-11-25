@@ -603,11 +603,16 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
         ? (_arabicTitles[p.title] ?? p.title)
         : p.title;
 
+    // Coming Soon check
+    final bool isComingSoon = (p.status.toLowerCase() == 'coming_soon' || p.auctionStatus?.toLowerCase() == 'coming_soon');
+
     // Remaining time formatting
     final hours = _remainingTime.inHours.toString().padLeft(2, '0');
     final minutes = (_remainingTime.inMinutes % 60).toString().padLeft(2, '0');
     final seconds = (_remainingTime.inSeconds % 60).toString().padLeft(2, '0');
-    final formattedTime = '${hours}h ${minutes}m ${seconds}s';
+    final formattedTime = isComingSoon
+        ? (isArabic ? 'قريباً' : 'Coming Soon')
+        : '${hours}h ${minutes}m ${seconds}s';
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -1358,8 +1363,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton.icon(
-                  onPressed: _isSubmittingBid ? null : _handlePlaceBid,
-                  icon: const Icon(Icons.gavel_rounded, size: 19, color: Colors.white),
+                  onPressed: (isComingSoon || _isSubmittingBid) ? null : _handlePlaceBid,
+                  icon: Icon(isComingSoon ? Icons.schedule_rounded : Icons.gavel_rounded, size: 19, color: Colors.white),
                   label: _isSubmittingBid
                       ? const SizedBox(
                           width: 18,
@@ -2429,8 +2434,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
               height: 44,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.pop(dlgCtx);
-                  context.push('/wins');
+                  Navigator.of(dlgCtx).pop();
+                  if (mounted) {
+                    context.go('/wins');
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0284C7),

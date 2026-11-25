@@ -80,7 +80,8 @@ class _LuxuryBannerCarouselState extends State<LuxuryBannerCarousel> {
   @override
   void initState() {
     super.initState();
-    _displayBanners = List.from(_fallbackBanners);
+    _displayBanners = [];
+    _isLoading = true;
     _loadBannersFromApi();
     _startTimer();
   }
@@ -125,11 +126,18 @@ class _LuxuryBannerCarouselState extends State<LuxuryBannerCarousel> {
           setState(() {
             _displayBanners = apiBanners;
             _currentPage = 0;
+            _isLoading = false;
           });
           _startTimer();
+        } else if (mounted) {
+          setState(() => _isLoading = false);
         }
+      } else if (mounted) {
+        setState(() => _isLoading = false);
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override

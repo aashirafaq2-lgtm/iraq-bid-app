@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 /// Service to handle unique referral links and automatic attribution
 /// Zero manual referral code entry required.
@@ -92,28 +93,80 @@ class ReferralService {
 
   /// Handle deep link or referral landing URL
   /// Supported formats:
+  /// - https://link.iraqbid.net/invite/AHMED25
+  /// - iraqbid://invite/AHMED25?click_id=clk_123
   /// - https://iraqbid.net/join?ref=IQB123&source=challenge
-  /// - iraqbid://join?ref=IQB123&source=wheel
-  /// - ?ref=IQB123
   static Future<void> handleDeepLink(String url) async {
     if (kDebugMode) {
       print('🔗 Deep link received: $url');
     }
-    
+
     try {
       final uri = Uri.parse(url);
-      final ref = uri.queryParameters['ref'] ?? uri.queryParameters['referral'];
-      final source = uri.queryParameters['source'] ?? 'challenge';
-      
+      String? ref = uri.queryParameters['ref'] ?? uri.queryParameters['referral'];
+      final clickId = uri.queryParameters['click_id'];
+      final source = uri.queryParameters['source'] ?? 'invite';
+
+      // Extract code from /invite/AHMED25 path
+      if ((ref == null || ref.trim().isEmpty) && uri.pathSegments.isNotEmpty) {
+        final idx = uri.pathSegments.indexOf('invite');
+        if (idx != -1 && idx + 1 < uri.pathSegments.length) {
+          ref = uri.pathSegments[idx + 1];
+        } else if (uri.host == 'invite' && uri.pathSegments.isNotEmpty) {
+          ref = uri.pathSegments.first;
+        }
+      }
+
       if (ref != null && ref.trim().isNotEmpty) {
         await savePendingReferral(token: ref.trim(), source: source.trim());
+        if (clickId != null && clickId.trim().isNotEmpty) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('pending_referral_click_id', clickId.trim());
+        }
         if (kDebugMode) {
-          print('✅ Referral attributed from link: ref=$ref, source=$source');
+          print('✅ Referral attributed from link: ref=$ref, click_id=$clickId');
         }
       }
     } catch (e) {
       if (kDebugMode) {
         print('❌ Error extracting referral link: $e');
+      }
+    }
+  }
+
+  static Future<String?> getPendingClickId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('pending_referral_click_id');
+  }
+
+  /// Check clipboard once on first launch for iOS/Android Deferred Deep Linking
+  /// Format: IRAQBID_REF:<CODE>:<CLICK_ID>
+  static Future<void> checkDeferredClipboard() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool('deferred_clipboard_checked') == true) return;
+      await prefs.setBool('deferred_clipboard_checked', true);
+
+      final existing = await getPendingReferralToken();
+      if (existing != null && existing.isNotEmpty) return;
+
+      final clipData = await Clipboard.getData(Clipboard.kTextPlain);
+      final text = clipData?.text?.trim() ?? '';
+      if (text.startsWith('IRAQBID_REF:')) {
+        final parts = text.split(':');
+        if (parts.length >= 2 && parts[1].isNotEmpty) {
+          await savePendingReferral(token: parts[1], source: 'deferred_clipboard');
+          if (parts.length >= 3 && parts[2].isNotEmpty) {
+            await prefs.setString('pending_referral_click_id', parts[2]);
+          }
+          if (kDebugMode) {
+            print('✅ Deferred referral recovered from clipboard: ${parts[1]}');
+          }
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ Deferred clipboard check skipped: $e');
       }
     }
   }

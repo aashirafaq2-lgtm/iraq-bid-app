@@ -366,7 +366,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> with SingleTi
   }
 
   String _formatTime(DateTime dt) {
-    return '${dt.day}/${dt.month}/${dt.year} • ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+    // Convert to Iraq Time (UTC+3 / Asia/Baghdad)
+    final iraqTime = dt.toUtc().add(const Duration(hours: 3));
+    return '${iraqTime.day}/${iraqTime.month}/${iraqTime.year} • ${iraqTime.hour.toString().padLeft(2, '0')}:${iraqTime.minute.toString().padLeft(2, '0')}';
   }
 
   Widget _buildEmptyState(bool isAr) {

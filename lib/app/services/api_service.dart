@@ -42,8 +42,8 @@ class ApiService {
     
     if (kDebugMode) {
       // DEBUG MODE: Try production admin backend directly or local
-      const String localUrl = 'https://admin.iraqbid.net/api/';
-      const String productionUrl = 'https://admin.iraqbid.net/api/';
+      const String localUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'https://api.iraqbid.net/api/');
+      const String productionUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'https://api.iraqbid.net/api/');
       
       // Try local first - if connection fails, auto-fallback will switch to production
       print('🌐 [Debug Mode] Attempting LOCAL API first: $localUrl');
@@ -52,15 +52,15 @@ class ApiService {
       return productionUrl;
     } else {
       // RELEASE MODE: Use production backend
-      const String productionUrl = 'https://admin.iraqbid.net/api/';
+      const String productionUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'https://api.iraqbid.net/api/');
       print('🌐 [Release] Using PRODUCTION API: $productionUrl');
       return productionUrl;
     }
   }
   
   // Production URL constant for fallback
-  static const String productionUrl = 'https://admin.iraqbid.net/api/';
-  static const String localUrl = 'https://admin.iraqbid.net/api/';
+  static const String productionUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'https://api.iraqbid.net/api/');
+  static const String localUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'https://api.iraqbid.net/api/');
   
   /// Get the current base URL (may have switched from local to production)
   /// Use this instead of baseUrl getter when you need the actual current URL

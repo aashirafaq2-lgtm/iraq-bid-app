@@ -91,6 +91,7 @@ Future<void> _checkAutoLogin() async {
 /// Initialize deep link handling for referral codes
 void _initDeepLinks() {
   final appLinks = AppLinks();
+  ReferralService.checkDeferredClipboard();
   
   // Handle initial link (if app was opened via deep link)
   appLinks.getInitialLink().then((Uri? uri) {

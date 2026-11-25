@@ -27,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   List<ProductModel> _products = [];
   bool _isLoading = true;
   Timer? _searchDebounce;
-  int _gridColumns = 2; // 3 = 3-in-line, 2 = 2-in-line, 1 = 1-in-line
+  int _gridColumns = 3; // 3 = 3-in-line (default), 2 = 2-in-line, 1 = 1-in-line
 
   // In-memory cache for ultra-fast instant UI rendering
   static final Map<String, List<ProductModel>> _categoryCache = {};
@@ -346,14 +346,18 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
 
           const SizedBox(width: 8),
 
-          // English / Arabic Quick Toggle Pill
-          GestureDetector(
-            onTap: () {
-              final current = LanguageService.getLanguageName();
-              final next = current == 'Arabic' ? 'English' : 'Arabic';
-              LanguageService.setLanguage(next);
+          // 4-Language Quick Selector (English, Arabic, Kurdish, Turkish)
+          PopupMenuButton<String>(
+            onSelected: (lang) {
+              LanguageService.setLanguage(lang);
               setState(() {});
             },
+            itemBuilder: (ctx) => const [
+              PopupMenuItem(value: 'English', child: Text('English')),
+              PopupMenuItem(value: 'Arabic', child: Text('العربية (Arabic)')),
+              PopupMenuItem(value: 'Kurdish', child: Text('کوردی (Kurdish)')),
+              PopupMenuItem(value: 'Turkish', child: Text('Türkçe (Turkish)')),
+            ],
             child: Container(
               height: 40,
               padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -372,7 +376,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    isArabic ? 'EN' : 'عربي',
+                    LanguageService.tr('EN', 'عربي', 'کوردی', 'TR'),
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
