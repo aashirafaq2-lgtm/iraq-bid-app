@@ -874,17 +874,21 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
 
           const SizedBox(height: 16),
 
-          // 3. PRODUCT TITLE
+          // 3. PRODUCT TITLE (Auto-translated to EN / AR / KU / TR)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              localizedTitle,
-              style: const TextStyle(
-                fontSize: 19,
-                fontWeight: FontWeight.w900,
-                color: Color(0xFF0F172A),
-                letterSpacing: -0.4,
-                height: 1.25,
+            child: FutureBuilder<String>(
+              future: LanguageService.translateDynamic(localizedTitle),
+              initialData: localizedTitle,
+              builder: (context, snapshot) => Text(
+                snapshot.data ?? localizedTitle,
+                style: const TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F172A),
+                  letterSpacing: -0.4,
+                  height: 1.25,
+                ),
               ),
             ),
           ),
@@ -1400,7 +1404,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
               width: double.infinity,
               height: 48,
               child: OutlinedButton.icon(
-                onPressed: () => _showBuyNowModal(buyNowPrice, isArabic),
+                onPressed: isComingSoon ? null : () => _showBuyNowModal(buyNowPrice, isArabic),
                 icon: const Icon(Icons.shopping_cart_outlined, size: 19, color: Color(0xFFF97316)),
                 label: Text(
                   isArabic ? 'شراء فوري \$$buyNowPrice' : 'Buy Now \$$buyNowPrice',

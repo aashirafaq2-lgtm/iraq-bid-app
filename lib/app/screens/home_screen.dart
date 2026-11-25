@@ -892,6 +892,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             category: p.categoryName,
             specialDescription: p.specialDescription,
             isSingleColumn: _gridColumns == 1,
+            status: p.status,
             onTap: () => context.push('/product-details/${p.id}'),
           );
         },

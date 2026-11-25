@@ -17,6 +17,7 @@ class LuxuryProductCard extends StatefulWidget {
   final String? tag;
   final String? specialDescription;
   final bool isSingleColumn;
+  final String? status;
   final VoidCallback onTap;
 
   const LuxuryProductCard({
@@ -31,6 +32,7 @@ class LuxuryProductCard extends StatefulWidget {
     this.tag,
     this.specialDescription,
     this.isSingleColumn = false,
+    this.status,
     required this.onTap,
   });
 
@@ -141,6 +143,9 @@ class _LuxuryProductCardState extends State<LuxuryProductCard> {
   }
 
   String _formatTimer() {
+    if (widget.status?.toLowerCase() == 'coming_soon') {
+      return LanguageService.tr('Coming Soon', 'قريباً', 'بەم زووانە', 'Yakında');
+    }
     if (_remaining == Duration.zero) return '00h 00m 00s';
     final hours = _remaining.inHours.toString().padLeft(2, '0');
     final minutes = (_remaining.inMinutes % 60).toString().padLeft(2, '0');
