@@ -2584,6 +2584,10 @@ class ApiService {
     } catch (_) {}
   }
 
+  Future<void> notifyMeOnAuctionStart(int productId) async {
+    await _dio.post('products/$productId/notify-me');
+  }
+
   Future<List<dynamic>> getVipContainers() async {
     try {
       final response = await _dio.get('vip/containers');

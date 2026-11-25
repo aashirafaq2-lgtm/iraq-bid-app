@@ -895,8 +895,158 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen>
 
           const SizedBox(height: 16),
 
-          // 4. STATUS BAR & CONTROLS (Switches between Normal Bid Stepper and Winning State)
-          if (_isWinning) ...[
+          // 4. STATUS BAR & CONTROLS (Switches between Coming Soon, Winning State, and Normal Bid Stepper)
+          if (isComingSoon) ...[
+            // 4-CS. COMING SOON BANNER
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3E8FF),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFD8B4FE)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.access_time_rounded, color: Color(0xFF6B21A8), size: 24),
+                        const SizedBox(width: 8),
+                        Text(
+                          LanguageService.tr('Coming Soon', 'قريباً', 'بەم زووانە', 'Yakında'),
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF581C87)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      LanguageService.tr(
+                        'This auction will be available soon.',
+                        'سيكون هذا المزاد متاحاً قريباً.',
+                        'ئەم مەزادە بەم زووانە بەردەست دەبێت.',
+                        'Bu açık artırma yakında başlayacak.',
+                      ),
+                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF6B21A8)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            // 3 Price Pills: Starting Bid | Buy Now Price | Original Price
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: const Color(0xFFF0F9FF), borderRadius: BorderRadius.circular(12)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(LanguageService.tr('Starting Bid', 'سعر البداية', 'نرخی دەستپێک', 'Başlangıç'), style: const TextStyle(fontSize: 10, color: Color(0xFF0284C7), fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 2),
+                          Text('\$${p.startingPrice.toInt()}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF0284C7))),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: const Color(0xFFFFF7ED), borderRadius: BorderRadius.circular(12)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(LanguageService.tr('Buy Now', 'شراء فوري', 'کڕینی خێرا', 'Hemen Al'), style: const TextStyle(fontSize: 10, color: Color(0xFFEA580C), fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 2),
+                          Text('\$$buyNowPrice', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFFEA580C))),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(LanguageService.tr('Original', 'السعر الأصلي', 'نرخی ئەسڵی', 'Orijinal'), style: const TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 2),
+                          Text('\$$realPrice', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Notify Me Button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    if (!_isLoggedIn) {
+                      context.push('/auth');
+                      return;
+                    }
+                    try {
+                      await apiService.notifyMeOnAuctionStart(p.id);
+                      if (mounted) {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                            title: Row(
+                              children: [
+                                const Icon(Icons.notifications_active_rounded, color: Color(0xFF6B21A8)),
+                                const SizedBox(width: 8),
+                                Text(LanguageService.tr('Reminder Set!', 'تم تفعيل التنبيه!', 'ئاگادارکردنەوە دانرا!', 'Hatırlatıcı Kuruldu!')),
+                              ],
+                            ),
+                            content: Text(LanguageService.tr(
+                              'We will notify you on your phone as soon as this auction starts!',
+                              'سنقوم بإشعارك على هاتفك فور بدء هذا المزاد!',
+                              'هەر کاتێک ئەم مەزادە دەستی پێکرد ئاگادارت دەکەینەوە!',
+                              'Bu açık artırma başlar başlamaz telefonunuza bildirim göndereceğiz!',
+                            )),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+                            ],
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFF6B21A8)),
+                  label: Text(
+                    LanguageService.tr('Notify Me', 'أعلمني عند البدء', 'ئاگادارم بکەرەوە', 'Bana Bildir'),
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF6B21A8)),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFF3E8FF),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ),
+          ] else if (_isWinning) ...[
             // 4A. WINNING STATE: 2-PANEL TOP (Time Left | Your Max Bid)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
