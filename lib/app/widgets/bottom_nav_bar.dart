@@ -47,7 +47,7 @@ class BottomNavBar extends StatelessWidget {
                     // 1. Home
                     _BouncingBottomNavItem(
                       icon: Icons.home_rounded,
-                      label: isArabic ? 'الرئيسية' : 'Home',
+                      label: LanguageService.tr('Home', 'الرئيسية', 'سەرەکی', 'Ana Sayfa'),
                       isActive: currentRoute == '/home' || currentRoute == '/seller-dashboard',
                       onTap: () {
                         if (currentRoute != '/home') {
@@ -59,7 +59,7 @@ class BottomNavBar extends StatelessWidget {
                     // 2. Bids
                     _BouncingBottomNavItem(
                       icon: Icons.gavel_rounded,
-                      label: isArabic ? 'المزادات' : 'Bids',
+                      label: LanguageService.tr('Bids', 'المزادات', 'مەزادەکان', 'Teklifler'),
                       isActive: currentRoute == '/bids' ||
                           currentRoute == '/buyer-bidding-history' ||
                           currentRoute == '/buyer/bidding-history',
@@ -72,7 +72,7 @@ class BottomNavBar extends StatelessWidget {
                     _BouncingBottomNavItem(
                       icon: Icons.favorite_border_rounded,
                       activeIcon: Icons.favorite_rounded,
-                      label: isArabic ? 'المفضلة' : 'Wishlist',
+                      label: LanguageService.tr('Wishlist', 'المفضلة', 'دڵخوازەکان', 'Favoriler'),
                       isActive: currentRoute == '/wishlist',
                       onTap: () {
                         context.go('/wishlist');
@@ -83,7 +83,7 @@ class BottomNavBar extends StatelessWidget {
                     _BouncingBottomNavItem(
                       icon: Icons.check_circle_outline_rounded,
                       activeIcon: Icons.check_circle_rounded,
-                      label: isArabic ? 'الرابحة' : 'Wons',
+                      label: LanguageService.tr('Wons', 'الرابحة', 'براوەکان', 'Kazanılanlar'),
                       isActive: currentRoute == '/wins',
                       onTap: () {
                         context.go('/wins');
@@ -94,7 +94,7 @@ class BottomNavBar extends StatelessWidget {
                     _BouncingBottomNavItem(
                       icon: Icons.person_outline_rounded,
                       activeIcon: Icons.person_rounded,
-                      label: isArabic ? 'حسابي' : 'Profile',
+                      label: LanguageService.tr('Profile', 'حسابي', 'پڕۆفایل', 'Profil'),
                       isActive: currentRoute == '/profile',
                       onTap: () {
                         context.go('/profile');

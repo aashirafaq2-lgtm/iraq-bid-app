@@ -34,15 +34,15 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
 
   // Ultra-crisp category tabs matching the reference UI exactly
   final List<Map<String, dynamic>> _categories = [
-    {'name': 'All', 'name_ar': 'الكل', 'icon': Icons.grid_view_rounded},
-    {'name': 'Luxury', 'name_ar': 'فاخر', 'icon': Icons.workspace_premium_outlined},
-    {'name': 'Shoes', 'name_ar': 'أحذية', 'icon': Icons.directions_run_rounded},
-    {'name': 'Electronics', 'name_ar': 'إلكترونيات', 'icon': Icons.devices_other_rounded},
-    {'name': 'Fashion', 'name_ar': 'أزياء', 'icon': Icons.checkroom_outlined},
-    {'name': 'Home', 'name_ar': 'المنزل', 'icon': Icons.chair_outlined},
-    {'name': 'Watches', 'name_ar': 'ساعات', 'icon': Icons.watch_outlined},
-    {'name': 'Mobiles', 'name_ar': 'موبايل', 'icon': Icons.smartphone_rounded},
-    {'name': 'Gaming', 'name_ar': 'ألعاب', 'icon': Icons.sports_esports_outlined},
+    {'name': 'All', 'name_ar': 'الكل', 'name_ku': 'هەموو', 'name_tr': 'Tümü', 'icon': Icons.grid_view_rounded},
+    {'name': 'Luxury', 'name_ar': 'فاخر', 'name_ku': 'شاهانە', 'name_tr': 'Lüks', 'icon': Icons.workspace_premium_outlined},
+    {'name': 'Shoes', 'name_ar': 'أحذية', 'name_ku': 'پێڵاو', 'name_tr': 'Ayakkabı', 'icon': Icons.directions_run_rounded},
+    {'name': 'Electronics', 'name_ar': 'إلكترونيات', 'name_ku': 'ئەلیکترۆنیات', 'name_tr': 'Elektronik', 'icon': Icons.devices_other_rounded},
+    {'name': 'Fashion', 'name_ar': 'أزياء', 'name_ku': 'فاشن', 'name_tr': 'Moda', 'icon': Icons.checkroom_outlined},
+    {'name': 'Home', 'name_ar': 'المنزل', 'name_ku': 'ماڵەوە', 'name_tr': 'Ev', 'icon': Icons.chair_outlined},
+    {'name': 'Watches', 'name_ar': 'ساعات', 'name_ku': 'کاتژمێر', 'name_tr': 'Saatler', 'icon': Icons.watch_outlined},
+    {'name': 'Mobiles', 'name_ar': 'موبايل', 'name_ku': 'مۆبایل', 'name_tr': 'Telefonlar', 'icon': Icons.smartphone_rounded},
+    {'name': 'Gaming', 'name_ar': 'ألعاب', 'name_ku': 'یاری', 'name_tr': 'Oyun', 'icon': Icons.sports_esports_outlined},
   ];
 
   @override
@@ -179,7 +179,12 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                isArabic ? 'المزادات الحية الحالية' : 'Live Auction Catalog',
+                                LanguageService.tr(
+                                  'Live Auction Catalog',
+                                  'المزادات الحية الحالية',
+                                  'لیستی مەزادی زیندوو',
+                                  'Canlı Açık Artırma Kataloğu',
+                                ),
                                 style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w800,
@@ -317,7 +322,12 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                       onSubmitted: (_) => _loadProducts(reset: true),
                       style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
                       decoration: InputDecoration(
-                        hintText: isArabic ? 'ابحث عن منتجات...' : 'Search for products...',
+                        hintText: LanguageService.tr(
+                          'Search for products...',
+                          'ابحث عن منتجات...',
+                          'بۆ بەرهەمەکان بگەڕێ...',
+                          'Ürün ara...',
+                        ),
                         hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
                         border: InputBorder.none,
                         isDense: true,
@@ -445,7 +455,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        isArabic ? 'منتجاتنا' : 'Our Product',
+                        LanguageService.tr('Our Product', 'منتجاتنا', 'بەرهەمەکانمان', 'Ürünlerimiz'),
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
@@ -731,7 +741,12 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         itemBuilder: (context, index) {
           final cat = _categories[index];
           final isSelected = _selectedCategory == cat['name'];
-          final label = isArabic ? cat['name_ar'] : cat['name'];
+          final label = LanguageService.tr(
+            cat['name'] as String,
+            cat['name_ar'] as String,
+            cat['name_ku'] as String,
+            cat['name_tr'] as String,
+          );
 
           return GestureDetector(
             onTap: () => _onCategorySelected(cat['name']),
@@ -825,7 +840,12 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             const Icon(Icons.inbox_outlined, size: 48, color: Color(0xFF94A3B8)),
             const SizedBox(height: 12),
             Text(
-              isArabic ? 'لا توجد مزادات نشطة في هذا القسم حالياً' : 'No active live auctions in this category',
+              LanguageService.tr(
+                'No active live auctions in this category',
+                'لا توجد مزادات نشطة في هذا القسم حالياً',
+                'هیچ مەزادێکی چالاک لەم بەشەدا نییە',
+                'Bu kategoride aktif canlı açık artırma yok',
+              ),
               style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
             ),
           ],
