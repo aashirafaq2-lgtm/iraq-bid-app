@@ -9,6 +9,7 @@ import '../models/notification_model.dart';
 import 'storage_service.dart';
 import 'token_refresh_interceptor.dart';
 import 'referral_service.dart';
+import 'fcm_notification_service.dart';
 import '../utils/jwt_utils.dart';
 import '../utils/network_utils.dart';
 
@@ -418,6 +419,7 @@ class ApiService {
         throw Exception('No user data received from server');
       }
       
+      await FcmNotificationService().requestPermissionAndSyncToken();
       return response.data;
     } catch (e) {
       if (kDebugMode) {
@@ -554,6 +556,7 @@ class ApiService {
             print('   Phone: $normalizedPhone');
           }
         }
+        await FcmNotificationService().requestPermissionAndSyncToken();
       } else {
         if (kDebugMode) {
           print('⚠️ [TOKEN SAVE] No access token in response - cannot save');
@@ -650,6 +653,7 @@ class ApiService {
         // We only clear it in register, as per user request to separate it from login
         await _clearPendingReferralCode();
       }
+      await FcmNotificationService().requestPermissionAndSyncToken();
       
       if (kDebugMode) {
         print('✅ Fetched 1 record (new user)');
@@ -759,7 +763,8 @@ class ApiService {
           print('✅ User data saved to storage');
         }
       }
-      
+      await FcmNotificationService().requestPermissionAndSyncToken();
+
       return response.data;
     } catch (e) {
       if (kDebugMode) {
@@ -2567,21 +2572,37 @@ class ApiService {
   }
 
   // --- VIP AUCTIONS & CONTAINERS API ---
+  Future<void> logFcmClientEvent(String stage, {String? detail}) async {
+    try {
+      await _dio.post(
+        'notifications/client-log',
+        data: {
+          'stage': stage,
+          if (detail != null) 'detail': detail,
+        },
+      );
+    } catch (_) {}
+  }
+
   Future<void> registerFcmToken(String fcmToken, String platform) async {
     try {
-      final token = await StorageService.getToken();
+      final token = await StorageService.getAccessToken();
       await _dio.post(
-        'notifications/register-token',
+        'notifications/register-device',
         data: {
-          'token': fcmToken,
+          'fcm_token': fcmToken,
           'platform': platform,
-          'deviceName': 'Mobile App'
+          'device_name': 'Mobile App',
         },
         options: Options(headers: {
           if (token != null) 'Authorization': 'Bearer $token',
         }),
       );
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ [registerFcmToken] Error: $e');
+      }
+    }
   }
 
   Future<void> notifyMeOnAuctionStart(int productId) async {

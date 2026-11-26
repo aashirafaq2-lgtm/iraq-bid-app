@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../services/api_service.dart';
+import '../services/fcm_notification_service.dart';
 import '../models/product_model.dart';
 import '../services/language_service.dart';
 import '../widgets/bottom_nav_bar.dart';
@@ -49,6 +50,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   void initState() {
     super.initState();
     _loadProducts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FcmNotificationService().requestPermissionAndSyncToken();
+    });
   }
 
   @override

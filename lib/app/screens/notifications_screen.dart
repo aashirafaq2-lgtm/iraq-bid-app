@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../models/notification_model.dart';
 import '../services/api_service.dart';
+import '../services/fcm_notification_service.dart';
 import '../services/storage_service.dart';
 import '../services/language_service.dart';
 
@@ -29,6 +30,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> with SingleTi
       duration: const Duration(milliseconds: 500),
     );
     _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
+    FcmNotificationService().requestPermissionAndSyncToken();
     _loadNotifications();
   }
 
