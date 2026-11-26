@@ -33,7 +33,12 @@ class FcmNotificationService {
       // 2. Set background messaging handler
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-      // 3. Request User Permission
+      // 3. Request User Permission & enable iOS foreground presentation
+      await _fcm.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
       final settings = await _fcm.requestPermission(
         alert: true,
         badge: true,

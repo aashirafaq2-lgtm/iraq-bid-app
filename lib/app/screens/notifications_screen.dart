@@ -137,6 +137,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> with SingleTi
         centerTitle: true,
         actions: [
           IconButton(
+            tooltip: LanguageService.tr('Preferences', 'الإعدادات', 'ڕێکخستنەکان', 'Tercihler'),
+            icon: const Icon(Icons.tune_rounded, color: Color(0xFF0F172A)),
+            onPressed: _showPreferencesSheet,
+          ),
+          IconButton(
             tooltip: isAr ? 'تحديد الكل كمقروء' : 'Mark all as read',
             icon: const Icon(Icons.done_all_rounded, color: Color(0xFF0284C7)),
             onPressed: _markAllAsRead,
@@ -369,6 +374,57 @@ class _NotificationsScreenState extends State<NotificationsScreen> with SingleTi
     // Convert to Iraq Time (UTC+3 / Asia/Baghdad)
     final iraqTime = dt.toUtc().add(const Duration(hours: 3));
     return '${iraqTime.day}/${iraqTime.month}/${iraqTime.year} • ${iraqTime.hour.toString().padLeft(2, '0')}:${iraqTime.minute.toString().padLeft(2, '0')}';
+  }
+
+  void _showPreferencesSheet() {
+    final Map<String, bool> prefs = {
+      'general': true,
+      'security': true,
+      'messages': true,
+      'transactions': true,
+      'reminders': true,
+      'announcements': true,
+      'marketing': false,
+    };
+    final labels = {
+      'general': LanguageService.tr('General Notifications', 'إشعارات عامة', 'ئاگادارکردنەوەی گشتی', 'Genel Bildirimler'),
+      'security': LanguageService.tr('Account & Security', 'الحساب والأمان', 'هەژمار و ئاسایش', 'Hesap ve Güvenlik'),
+      'messages': LanguageService.tr('Messages', 'الرسائل', 'نامەکان', 'Mesajlar'),
+      'transactions': LanguageService.tr('Transactions & Bids', 'المعاملات والمزايدات', 'مامەڵە و مەزادەکان', 'İşlemler ve Teklifler'),
+      'reminders': LanguageService.tr('Reminders', 'التذكيرات', 'بیرخستنەوەکان', 'Hatırlatıcılar'),
+      'announcements': LanguageService.tr('Announcements', 'الإعلانات', 'ڕاگەیاندنەکان', 'Duyurular'),
+      'marketing': LanguageService.tr('Marketing & Promotions', 'العروض والتسويق', 'بازاڕگەری و ئۆفەرەکان', 'Pazarlama ve Fırsatlar'),
+    };
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                LanguageService.tr('Notification Preferences', 'تفضيلات الإشعارات', 'ڕێکخستنی ئاگادارکردنەوەکان', 'Bildirim Tercihleri'),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 10),
+              ...prefs.keys.map((key) => SwitchListTile(
+                    dense: true,
+                    title: Text(labels[key] ?? key, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    value: prefs[key]!,
+                    activeColor: const Color(0xFF0284C7),
+                    onChanged: (val) {
+                      setModalState(() => prefs[key] = val);
+                      apiService.updateNotificationSettings(prefs).catchError((_) => <String, dynamic>{});
+                    },
+                  )),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildEmptyState(bool isAr) {

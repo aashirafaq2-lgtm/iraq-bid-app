@@ -2588,6 +2588,11 @@ class ApiService {
     await _dio.post('products/$productId/notify-me');
   }
 
+  Future<Map<String, dynamic>> updateNotificationSettings(Map<String, dynamic> settings) async {
+    final response = await _dio.put('notifications/settings', data: settings);
+    return Map<String, dynamic>.from(response.data ?? {});
+  }
+
   Future<List<dynamic>> getVipContainers() async {
     try {
       final response = await _dio.get('vip/containers');
